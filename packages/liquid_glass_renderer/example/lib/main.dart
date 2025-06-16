@@ -56,7 +56,7 @@ class MainApp extends HookWidget {
       upperBound: 2 * pi,
     )..repeat();
 
-    final lightAngle = useAnimation(lightAngleController);
+    final lightAngle = 0.0;
 
     final cornerRadius = useSingleMotion(
       value: cornerRadiusNotifier.value,
@@ -242,6 +242,14 @@ class Background extends HookWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      color: Colors.red,
+                    ),
+                  ),
                   Align(
                     alignment: Alignment.bottomLeft,
                     child: Text(
