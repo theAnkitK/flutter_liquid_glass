@@ -193,36 +193,12 @@ vec3 calculateLighting(vec2 uv, vec3 normal, float height, vec2 refractionDispla
     vec3 halfwayDir2 = normalize(oppositeLightDir + viewDir);
     float specDot2 = max(0.0, dot(normal, halfwayDir2));
 
-    // --- Environment Reflection Sampling ---
-    // This is used for both the glint and the base reflection for efficiency.
-    vec3 reflectedColor = vec3(0.0); // Default to black
-    const float reflectionSampleDistance = 300.0;
-    const float reflectionBlur = 10.0; // A large blur will wash out distinct colors.
-
-    // Using the normal's XY components provides a more direct "outward" vector
-    // than the physically correct reflect() function for this specific visual effect.
-    if (length(normal.xy) > 0.001) {
-        vec2 reflectionDir = normalize(normal.xy);
-        vec2 baseSampleUV = uv + reflectionDir * reflectionSampleDistance / uSize;
-
-        // Simple 4-tap blur for the reflection
-        vec2 blurOffset = vec2(reflectionBlur) / uSize;
-        vec3 sampledColor = vec3(0.0);
-        sampledColor += texture(uBackgroundTexture, baseSampleUV + blurOffset * vec2( 1,  1)).rgb;
-        sampledColor += texture(uBackgroundTexture, baseSampleUV + blurOffset * vec2(-1,  1)).rgb;
-        sampledColor += texture(uBackgroundTexture, baseSampleUV + blurOffset * vec2( 1, -1)).rgb;
-        sampledColor += texture(uBackgroundTexture, baseSampleUV + blurOffset * vec2(-1, -1)).rgb;
-        reflectedColor = sampledColor / 4.0;
-    }
-    
-    // 1. Sharp surface glint (tinted by the environment)
+    // 1. Sharp surface glint (pure white)
     float glintExponent = mix(350.0, 512.0, smoothstep(5.0, 25.0, uThickness));
     float sharpFactor = pow(specDot1, glintExponent) + pow(specDot2, glintExponent * 1.2);
 
-    // First, calculate the pure white glint intensity.
-    vec3 whiteGlint = vec3(sharpFactor) * uLightIntensity * 2.5;
-    // Then, multiply by the reflected color to tint the glint. This is the key change.
-    vec3 sharpGlint = whiteGlint * reflectedColor;
+    // Pure white glint without environment tinting
+    vec3 sharpGlint = vec3(sharpFactor) * uLightIntensity * 2.5;
 
     // 2. Soft internal bleed, controlled by refraction amount
     float displacementMag = length(refractionDisplacement);
@@ -232,15 +208,8 @@ vec3 calculateLighting(vec2 uv, vec3 normal, float height, vec2 refractionDispla
     float softFactor = pow(specDot1, 32.0) + pow(specDot2, 32.0);
     vec3 softBleed = vec3(softFactor) * uLightIntensity * 0.8;
 
-    // 3. Base Environment Reflection (subtle, always on)
-    const float reflectionBase = .1;
-    const float reflectionFresnelStrength = 0.5;
-    float reflectionFresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 3.0);
-    float reflectionIntensity = (reflectionBase + reflectionFresnel * reflectionFresnelStrength) * uAmbientStrength;
-    vec3 environmentReflection = reflectedColor * reflectionIntensity;
-
     // Combine lighting components
-    vec3 lighting = rimLight + sharpGlint + (softBleed * internalIntensity) + environmentReflection;
+    vec3 lighting = rimLight + sharpGlint + (softBleed * internalIntensity);
 
     // Final combination
     return lighting * shape;
