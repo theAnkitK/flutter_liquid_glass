@@ -195,7 +195,7 @@ vec3 calculateLighting(vec2 uv, vec3 normal, float height, vec2 refractionDispla
 
     // --- Environment Reflection Sampling ---
     // This is used for both the glint and the base reflection for efficiency.
-    vec3 reflectedColor = vec3(1.0); // Default to white
+    vec3 reflectedColor = vec3(0.0); // Default to black
     const float reflectionSampleDistance = 300.0;
     const float reflectionBlur = 10.0; // A large blur will wash out distinct colors.
 
@@ -236,7 +236,7 @@ vec3 calculateLighting(vec2 uv, vec3 normal, float height, vec2 refractionDispla
     const float reflectionBase = .1;
     const float reflectionFresnelStrength = 0.5;
     float reflectionFresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 3.0);
-    float reflectionIntensity = reflectionBase + reflectionFresnel * reflectionFresnelStrength;
+    float reflectionIntensity = (reflectionBase + reflectionFresnel * reflectionFresnelStrength) * uAmbientStrength;
     vec3 environmentReflection = reflectedColor * reflectionIntensity;
 
     // Combine lighting components
@@ -315,13 +315,8 @@ void main() {
         refractColor = texture(uBackgroundTexture, refractedUV);
     }
     
-    // Calculate reflection effect
-    vec4 reflectColor = vec4(0.0);
-    float reflectionIntensity = clamp(abs(refractionDisplacement.x - refractionDisplacement.y) * 0.001, 0.0, 0.3);
-    reflectColor = vec4(reflectionIntensity, reflectionIntensity, reflectionIntensity, 0.0);
-    
     // Mix refraction and reflection based on normal.z
-    vec4 liquidColor = mix(refractColor, reflectColor, (1.0 - normal.z) * 0.2);
+    vec4 liquidColor = refractColor;
     
     // Calculate lighting effects
     vec3 lighting = calculateLighting(screenUV, normal, height, refractionDisplacement, uThickness);
@@ -350,15 +345,7 @@ void main() {
     
     // Sample original background for falloff areas
     vec4 originalBgColor = texture(uBackgroundTexture, screenUV);
-    
-    // Create falloff effect for areas outside the main liquid glass
-    float falloff = clamp(length(refractionDisplacement) / 100.0, 0.0, 1.0) * 0.1 + 0.9;
-    vec4 falloffColor = mix(vec4(0.0), originalBgColor, falloff);
-    
-    // Final mix: blend between displaced liquid color and background based on edge alpha
-    finalColor = clamp(finalColor, 0.0, 1.0);
-    falloffColor = clamp(falloffColor, 0.0, 1.0);
-    
+        
     // Use alpha for smooth transition at boundaries
     vec4 backgroundColor = texture(uBackgroundTexture, screenUV);
     fragColor = mix(backgroundColor, finalColor, 1.0 - alpha);
