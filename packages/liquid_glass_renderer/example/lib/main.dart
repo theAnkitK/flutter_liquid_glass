@@ -300,13 +300,15 @@ class SettingsSheet extends HookWidget {
       snapGrid: SheetSnapGrid(snaps: [SheetOffset(0.5), SheetOffset(1)]),
       child: SafeArea(
         child: LiquidGlass(
-          blur: 10,
+          blur: 20,
           glassContainsChild: false,
           settings: LiquidGlassSettings(
-            thickness: 40,
-            lightIntensity: .4,
+            thickness: 30,
+            lightIntensity: .2,
+            lightAngle: .2 * pi,
+
             ambientStrength: 2,
-            chromaticAberration: 4,
+            chromaticAberration: 2,
             glassColor: Theme.of(
               context,
             ).colorScheme.surface.withValues(alpha: 0.4),
@@ -342,6 +344,7 @@ class SettingsSheet extends HookWidget {
                         min: 0,
                         max: 160,
                       ),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
