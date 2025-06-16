@@ -14,7 +14,7 @@ void main() {
 
 final thicknessNotifier = ValueNotifier<double>(20);
 
-final blurFactorNotifier = ValueNotifier<double>(0.0);
+final blurNotifier = ValueNotifier<double>(0.0);
 
 final cornerRadiusNotifier = ValueNotifier<double>(100);
 
@@ -29,6 +29,8 @@ final blendNotifier = ValueNotifier<double>(50);
 final chromaticAberrationNotifier = ValueNotifier<double>(1);
 
 final ambientStrengthNotifier = ValueNotifier<double>(0.5);
+
+final refractiveIndexNotifier = ValueNotifier<double>(1.51);
 
 class MainApp extends HookWidget {
   const MainApp({super.key});
@@ -48,7 +50,7 @@ class MainApp extends HookWidget {
       motion: SpringMotion(spring),
     );
 
-    final blur = thickness * blurFactorNotifier.value;
+    final blur = useValueListenable(blurNotifier);
 
     final lightAngleController = useAnimationController(
       duration: const Duration(seconds: 5),
@@ -112,6 +114,7 @@ class MainApp extends HookWidget {
                     ambientStrength: ambientStrengthNotifier.value,
                     blend: blend,
                     chromaticAberration: chromaticAberration,
+                    refractiveIndex: refractiveIndexNotifier.value,
                   ),
                   child: Stack(
                     alignment: Alignment.bottomLeft,
@@ -274,11 +277,20 @@ class Background extends HookWidget {
   }
 }
 
-class SettingsSheet extends StatelessWidget {
+class SettingsSheet extends HookWidget {
   const SettingsSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final thickness = useValueListenable(thicknessNotifier);
+    final cornerRadius = useValueListenable(cornerRadiusNotifier);
+    final lightIntensity = useValueListenable(lightIntensityNotifier);
+    final blurFactor = useValueListenable(blurNotifier);
+    final blend = useValueListenable(blendNotifier);
+    final chromaticAberration = useValueListenable(chromaticAberrationNotifier);
+    final ambientStrength = useValueListenable(ambientStrengthNotifier);
+    final refractionStrength = useValueListenable(refractiveIndexNotifier);
+
     return Sheet(
       dragConfiguration: SheetDragConfiguration(),
       scrollConfiguration: const SheetScrollConfiguration(),
@@ -315,67 +327,126 @@ class SettingsSheet extends StatelessWidget {
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
                       const SizedBox(height: 16),
-                      Text('Thickness:'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Thickness:'),
+                          Text(thickness.toStringAsFixed(2)),
+                        ],
+                      ),
                       CupertinoSlider(
-                        value: thicknessNotifier.value,
+                        value: thickness,
                         onChanged: (value) {
                           thicknessNotifier.value = value;
                         },
                         min: 0,
                         max: 160,
                       ),
-                      Text('Corner Radius:'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Corner Radius:'),
+                          Text(cornerRadius.toStringAsFixed(2)),
+                        ],
+                      ),
                       CupertinoSlider(
-                        value: cornerRadiusNotifier.value,
+                        value: cornerRadius,
                         onChanged: (value) {
                           cornerRadiusNotifier.value = value;
                         },
                         min: 0,
                         max: 100,
                       ),
-                      Text('Light Intensity:'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Light Intensity:'),
+                          Text(lightIntensity.toStringAsFixed(2)),
+                        ],
+                      ),
                       CupertinoSlider(
-                        value: lightIntensityNotifier.value,
+                        value: lightIntensity,
                         onChanged: (value) {
                           lightIntensityNotifier.value = value;
                         },
                         min: 0,
                         max: 5,
                       ),
-
-                      Text('Blur:'),
-                      CupertinoSlider(
-                        value: blurFactorNotifier.value,
-                        onChanged: (value) {
-                          blurFactorNotifier.value = value;
-                        },
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Ambient Strength:'),
+                          Text(ambientStrength.toStringAsFixed(2)),
+                        ],
                       ),
-                      Text('Liquid Factor™:'),
                       CupertinoSlider(
-                        value: blendNotifier.value,
+                        value: ambientStrength,
+                        onChanged: (value) {
+                          ambientStrengthNotifier.value = value;
+                        },
+                        min: 0,
+                        max: 5,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Blur:'),
+                          Text(blurFactor.toStringAsFixed(2)),
+                        ],
+                      ),
+                      CupertinoSlider(
+                        value: blurFactor,
+                        onChanged: (value) {
+                          blurNotifier.value = value;
+                        },
+                        min: 0,
+                        max: 40,
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Liquid Factor™:'),
+                          Text(blend.toStringAsFixed(2)),
+                        ],
+                      ),
+                      CupertinoSlider(
+                        value: blend,
                         onChanged: (value) {
                           blendNotifier.value = value;
                         },
                         min: 0,
                         max: 100,
                       ),
-                      Text('Chromatic Aberration:'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Chromatic Aberration:'),
+                          Text(chromaticAberration.toStringAsFixed(2)),
+                        ],
+                      ),
                       CupertinoSlider(
-                        value: chromaticAberrationNotifier.value,
+                        value: chromaticAberration,
                         onChanged: (value) {
                           chromaticAberrationNotifier.value = value;
                         },
                         min: 0,
                         max: 10,
                       ),
-                      Text('Ambient Strength:'),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Refractive Index:'),
+                          Text(refractionStrength.toStringAsFixed(2)),
+                        ],
+                      ),
                       CupertinoSlider(
-                        value: ambientStrengthNotifier.value,
+                        value: refractionStrength,
                         onChanged: (value) {
-                          ambientStrengthNotifier.value = value;
+                          refractiveIndexNotifier.value = value;
                         },
-                        min: 0,
-                        max: 5,
+                        min: 1,
+                        max: 3,
                       ),
                     ],
                   ),
