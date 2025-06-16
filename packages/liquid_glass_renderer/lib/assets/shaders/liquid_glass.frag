@@ -217,7 +217,7 @@ void main() {
     
     // Generate shape and calculate normal/height directly
     float sd = sceneSDF(p);
-    float alpha = smoothstep(-4.0, 0.0, sd);
+    float alpha = smoothstep(-2.0, 0.0, sd);
     
     // If we're completely outside the glass area (with smooth transition)
     if (alpha > 0.999) {

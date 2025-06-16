@@ -22,7 +22,7 @@ final glassColorNotifier = ValueNotifier<Color>(
   const Color.fromARGB(0, 255, 255, 255),
 );
 
-final lightIntensityNotifier = ValueNotifier<double>(5);
+final lightIntensityNotifier = ValueNotifier<double>(1);
 
 final blendNotifier = ValueNotifier<double>(50);
 
