@@ -21,15 +21,15 @@ vec4 applyKawaseBlur(sampler2D tex, vec2 uv, vec2 texelSize, float blurRadius) {
     float offset = blurRadius;
     
     // Pass 1: Diamond pattern (4 samples)
-    vec2 offsets1[4] = vec2[4](
-        vec2(-offset, -offset),
-        vec2(offset, -offset),
-        vec2(-offset, offset),
-        vec2(offset, offset)
+    const vec2 offsets1[4] = vec2[4](
+        vec2(-1.0, -1.0),
+        vec2(1.0, -1.0),
+        vec2(-1.0, 1.0),
+        vec2(1.0, 1.0)
     );
     
     for (int i = 0; i < 4; i++) {
-        vec2 sampleUV = uv + offsets1[i] * texelSize;
+        vec2 sampleUV = uv + offsets1[i] * offset * texelSize;
         if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
             color += texture(tex, sampleUV);
             totalWeight += 1.0;
@@ -38,15 +38,15 @@ vec4 applyKawaseBlur(sampler2D tex, vec2 uv, vec2 texelSize, float blurRadius) {
     
     // Pass 2: Cross pattern with larger offset (4 samples)
     float offset2 = offset * 1.5;
-    vec2 offsets2[4] = vec2[4](
-        vec2(0.0, -offset2),
-        vec2(0.0, offset2),
-        vec2(-offset2, 0.0),
-        vec2(offset2, 0.0)
+    const vec2 offsets2[4] = vec2[4](
+        vec2(0.0, -1.0),
+        vec2(0.0, 1.0),
+        vec2(-1.0, 0.0),
+        vec2(1.0, 0.0)
     );
     
     for (int i = 0; i < 4; i++) {
-        vec2 sampleUV = uv + offsets2[i] * texelSize;
+        vec2 sampleUV = uv + offsets2[i] * offset2 * texelSize;
         if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
             color += texture(tex, sampleUV) * 0.8; // Slightly less weight for outer samples
             totalWeight += 0.8;
@@ -55,15 +55,15 @@ vec4 applyKawaseBlur(sampler2D tex, vec2 uv, vec2 texelSize, float blurRadius) {
     
     // Pass 3: Intermediate diagonal samples (4 samples)
     float offset3 = offset * 0.7;
-    vec2 offsets3[4] = vec2[4](
-        vec2(-offset3, 0.0),
-        vec2(offset3, 0.0),
-        vec2(0.0, -offset3),
-        vec2(0.0, offset3)
+    const vec2 offsets3[4] = vec2[4](
+        vec2(-1.0, 0.0),
+        vec2(1.0, 0.0),
+        vec2(0.0, -1.0),
+        vec2(0.0, 1.0)
     );
     
     for (int i = 0; i < 4; i++) {
-        vec2 sampleUV = uv + offsets3[i] * texelSize;
+        vec2 sampleUV = uv + offsets3[i] * offset3 * texelSize;
         if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
             color += texture(tex, sampleUV) * 0.6;
             totalWeight += 0.6;

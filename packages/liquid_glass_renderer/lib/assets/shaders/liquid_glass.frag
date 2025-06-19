@@ -8,7 +8,7 @@
 // Feel free to use this shader in your own projects, it'd be lovely if you could
 // give some credit like I did here.
 
-#version 320 es
+#version 460 es
 precision mediump float;
 
 #define DEBUG_NORMALS 0
@@ -21,7 +21,7 @@ layout(location = 1) uniform float uSizeH;
 
 vec2 uSize = vec2(uSizeW, uSizeH);
 
-layout(location = 2) uniform float uChromaticAberration = 0.0;
+layout(location = 2) uniform float uChromaticAberration;
 
 layout(location = 3) uniform float uGlassColorR;
 layout(location = 4) uniform float uGlassColorG;
@@ -30,11 +30,11 @@ layout(location = 6) uniform float uGlassColorA;
 
 vec4 uGlassColor = vec4(uGlassColorR, uGlassColorG, uGlassColorB, uGlassColorA);
 
-layout(location = 7) uniform float uLightAngle = 0.785398;
-layout(location = 8) uniform float uLightIntensity = 1.0;
-layout(location = 9) uniform float uAmbientStrength = 0.1;
+layout(location = 7) uniform float uLightAngle;
+layout(location = 8) uniform float uLightIntensity;
+layout(location = 9) uniform float uAmbientStrength;
 layout(location = 10) uniform float uThickness;
-layout(location = 11) uniform float uRefractiveIndex = 1.2;
+layout(location = 11) uniform float uRefractiveIndex;
 
 // Shape uniforms
 layout(location = 12) uniform float uShape1Type;
@@ -151,10 +151,16 @@ vec3 getNormal(float sd, float thickness) {
     return normalize(vec3(dx * n_cos, dy * n_cos, n_sin));
 }
 
+#define IMPELLER_TARGET_OPENGLES 1
+
 void main() {
-    vec2 screenUV = FlutterFragCoord().xy / uSize;
     vec2 p = FlutterFragCoord().xy;
-    
+    vec2 screenUV = p / uSize;
+
+#ifdef IMPELLER_TARGET_OPENGLES
+    screenUV.y = 1.0 - screenUV.y;
+#endif
+
     // Generate shape and calculate normal using shader-specific method
     float sd = sceneSDF(p);
     vec3 normal = getNormal(sd, uThickness);

@@ -3,7 +3,7 @@
 // Alternative liquid glass shader with different normal calculation approach
 // This demonstrates how the shared rendering pipeline makes it easy to create variants
 
-#version 320 es
+#version 460 es
 precision mediump float;
 
 #define DEBUG_NORMALS 0
@@ -21,7 +21,7 @@ layout(location = 2) uniform float uForegroundSizeW;
 layout(location = 3) uniform float uForegroundSizeH;
 vec2 uForegroundSize = vec2(uForegroundSizeW, uForegroundSizeH);
 
-layout(location = 4) uniform float uChromaticAberration = 0.0;
+layout(location = 4) uniform float uChromaticAberration;
 
 layout(location = 5) uniform float uGlassColorR;
 layout(location = 6) uniform float uGlassColorG;
@@ -176,6 +176,7 @@ vec3 getNormal(vec2 p, float thickness) {
     return getReconstructedNormal(p, thickness);
 }
 
+
 void main() {
     vec2 screenUV = FlutterFragCoord().xy / uSize;
 
@@ -183,6 +184,11 @@ void main() {
     // Subtract the layer's position on screen to get coordinates relative to the layer
     vec2 layerLocalCoord = FlutterFragCoord().xy - uOffset;
     vec2 layerUV = layerLocalCoord / uForegroundSize;
+
+#ifdef IMPELLER_TARGET_OPENGLES
+    screenUV.y = 1.0 - screenUV.y;
+    layerUV.y = 1.0 - layerUV.y;
+#endif
 
     // If we are sampling outside of the foreground matte we should just treat the
     // pixel as skipped
