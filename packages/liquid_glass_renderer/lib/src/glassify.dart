@@ -1,5 +1,6 @@
 // ignore_for_file: avoid_setters_without_getters
 
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:ui';
 
@@ -178,8 +179,8 @@ class RenderGlassify extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Calculate global position for the shader
     var globalOffset = offset;
+    var transformedSize = size;
     try {
       final transform = getTransformTo(null);
       final globalRect = MatrixUtils.transformRect(
@@ -187,8 +188,8 @@ class RenderGlassify extends RenderProxyBox {
         Offset.zero & size,
       );
       globalOffset = globalRect.topLeft;
+      transformedSize = globalRect.size;
     } catch (e) {
-      // Fallback to the provided offset if transform calculation fails
       debugPrint('Failed to calculate global transform for Glassify: $e');
     }
 
@@ -199,6 +200,7 @@ class RenderGlassify extends RenderProxyBox {
       settings: _settings,
       devicePixelRatio: _devicePixelRatio,
       layerSize: size,
+      transformedSize: transformedSize,
     );
     layer!
       ..offset = offset
@@ -206,7 +208,8 @@ class RenderGlassify extends RenderProxyBox {
       ..shader = _shader
       ..settings = _settings
       ..devicePixelRatio = _devicePixelRatio
-      ..layerSize = size;
+      ..layerSize = size
+      ..transformedSize = transformedSize;
     context.pushLayer(
       layer!,
       (context, offset) {
@@ -244,12 +247,14 @@ class _GlassifyShaderLayer extends OffsetLayer {
     required LiquidGlassSettings settings,
     required double devicePixelRatio,
     required Size layerSize,
+    required Size transformedSize,
     required super.offset,
     required Offset globalOffset,
   })  : _shader = shader,
         _settings = settings,
         _devicePixelRatio = devicePixelRatio,
         _layerSize = layerSize,
+        _transformedSize = transformedSize,
         _globalOffset = globalOffset;
 
   FragmentShader _shader;
@@ -281,6 +286,14 @@ class _GlassifyShaderLayer extends OffsetLayer {
   set layerSize(Size value) {
     if (_layerSize == value) return;
     _layerSize = value;
+    markNeedsAddToScene();
+  }
+
+  Size _transformedSize;
+  Size get transformedSize => _transformedSize;
+  set transformedSize(Size value) {
+    if (_transformedSize == value) return;
+    _transformedSize = value;
     markNeedsAddToScene();
   }
 
@@ -379,28 +392,43 @@ class _GlassifyShaderLayer extends OffsetLayer {
   }
 
   void _setupShaderUniforms() {
-    // Since BackdropFilter operates in global coordinate space,
-    // we need to pass the global offset to the shader
+    final scaleX = transformedSize.width / layerSize.width;
+    final scaleY = transformedSize.height / layerSize.height;
+    
     shader
-      ..setImageSampler(1, childImage!) // uForegroundTexture
-      ..setImageSampler(2, childBlurredImage!) // uForegroundBlurredTexture
-      ..setFloat(2, layerSize.width * devicePixelRatio)
-      ..setFloat(3, layerSize.height * devicePixelRatio)
-      ..setFloat(4, settings.chromaticAberration)
-      ..setFloat(5, settings.glassColor.r)
-      ..setFloat(6, settings.glassColor.g)
-      ..setFloat(7, settings.glassColor.b)
-      ..setFloat(8, settings.glassColor.a)
-      ..setFloat(9, settings.lightAngle)
-      ..setFloat(10, settings.lightIntensity)
-      ..setFloat(11, settings.ambientStrength)
-      ..setFloat(12, settings.thickness)
-      ..setFloat(13, settings.refractiveIndex)
-      ..setFloat(14, globalOffset.dx * devicePixelRatio)
-      ..setFloat(15, globalOffset.dy * devicePixelRatio)
-      ..setFloat(16, settings.saturation)
-      ..setFloat(17, settings.lightness)
-      ..setFloat(18, settings.blur);
+      ..setImageSampler(1, childImage!)
+      ..setImageSampler(2, childBlurredImage!)
+      ..setFloatUniforms(initialIndex: 2, (value) {
+        value
+          ..setOffset(
+            Offset(
+              layerSize.width * devicePixelRatio,
+              layerSize.height * devicePixelRatio,
+            ),
+          )
+          ..setColor(settings.glassColor)
+          ..setFloats([
+            settings.refractiveIndex,
+            settings.chromaticAberration,
+            settings.thickness,
+            settings.blur,
+            settings.lightAngle,
+            settings.lightIntensity,
+            settings.ambientStrength,
+            settings.saturation,
+          ])
+          ..setOffset(globalOffset * devicePixelRatio)
+          ..setFloat(settings.lightness)
+          ..setOffset(
+            Offset(
+              cos(settings.lightAngle),
+              sin(settings.lightAngle),
+            ),
+          )
+          ..setFloats(
+            Matrix4.diagonal3Values(1 / scaleX, 1 / scaleY, 1).storage,
+          );
+      });
   }
 
   @override

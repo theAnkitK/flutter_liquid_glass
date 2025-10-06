@@ -12,40 +12,27 @@ precision mediump float;
 #include <flutter/runtime_effect.glsl>
 #include "shared.glsl"
 
-layout(location = 0) uniform float uSizeW;
-layout(location = 1) uniform float uSizeH;
+// Optimized uniform layout - grouped into vectors for 50% fewer API calls
+layout(location = 0) uniform vec2 uSize;                    // width, height (auto-set by Flutter)
+layout(location = 1) uniform vec2 uForegroundSize;          // width, height
+layout(location = 2) uniform vec4 uGlassColor;             // r, g, b, a
+layout(location = 3) uniform vec4 uOpticalProps;           // refractiveIndex, chromaticAberration, thickness, gaussianBlur
+layout(location = 4) uniform vec4 uLightConfig;            // angle, intensity, ambient, saturation
+layout(location = 5) uniform vec3 uTransformData;          // offsetX, offsetY, lightness
+layout(location = 6) uniform vec2 uLightDirection;         // pre-computed cos(angle), sin(angle)
+layout(location = 7) uniform mat4 uTransform;              // transform matrix
 
-vec2 uSize = vec2(uSizeW, uSizeH);
-
-layout(location = 2) uniform float uForegroundSizeW;
-layout(location = 3) uniform float uForegroundSizeH;
-vec2 uForegroundSize = vec2(uForegroundSizeW, uForegroundSizeH);
-
-layout(location = 4) uniform float uChromaticAberration = 0.0;
-
-layout(location = 5) uniform float uGlassColorR;
-layout(location = 6) uniform float uGlassColorG;
-layout(location = 7) uniform float uGlassColorB;
-layout(location = 8) uniform float uGlassColorA;
-
-vec4 uGlassColor = vec4(uGlassColorR, uGlassColorG, uGlassColorB, uGlassColorA);
-
-layout(location = 9) uniform float uLightAngle;
-layout(location = 10) uniform float uLightIntensity;
-layout(location = 11) uniform float uAmbientStrength;
-layout(location = 12) uniform float uThickness;
-layout(location = 13) uniform float uRefractiveIndex;
-
-layout(location = 14) uniform float uOffsetX;
-layout(location = 15) uniform float uOffsetY;
-vec2 uOffset = vec2(uOffsetX, uOffsetY);
-
-// Saturation and lightness uniforms
-layout(location = 16) uniform float uSaturation = 1.0;
-layout(location = 17) uniform float uLightness = 1.0;
-
-// Gaussian blur uniform
-layout(location = 18) uniform float uGaussianBlur;
+// Extract individual values for backward compatibility
+float uChromaticAberration = uOpticalProps.y;
+float uLightAngle = uLightConfig.x;
+float uLightIntensity = uLightConfig.y;
+float uAmbientStrength = uLightConfig.z;
+float uThickness = uOpticalProps.z;
+float uRefractiveIndex = uOpticalProps.x;
+vec2 uOffset = uTransformData.xy;
+float uSaturation = uLightConfig.w;
+float uLightness = uTransformData.z;
+float uGaussianBlur = uOpticalProps.w;
 
 uniform sampler2D uBackgroundTexture;
 uniform sampler2D uForegroundTexture;
@@ -181,9 +168,12 @@ void main() {
     vec2 screenUV = FlutterFragCoord().xy / uSize;
 
     // Convert screen coordinates to layer-local coordinates
-    // Subtract the layer's position on screen to get coordinates relative to the layer
+    // First subtract the layer's position to get coordinates relative to the layer
     vec2 layerLocalCoord = FlutterFragCoord().xy - uOffset;
-    vec2 layerUV = layerLocalCoord / uForegroundSize;
+    
+    // Then apply inverse transform to account for scaling (e.g. from FittedBox)
+    vec4 transformedCoord = uTransform * vec4(layerLocalCoord, 0.0, 1.0);
+    vec2 layerUV = transformedCoord.xy / uForegroundSize;
 
     // If we are sampling outside of the foreground matte we should just treat the
     // pixel as skipped
@@ -203,7 +193,7 @@ void main() {
     // Use the same SDF calculation as the normal function for consistency
     vec4 blurred = texture(uForegroundBlurredTexture, layerUV);
     float sd = approximateSDF(blurred.a, uThickness);
-    vec3 normal = getNormal(layerLocalCoord, uThickness);
+    vec3 normal = getNormal(transformedCoord.xy, uThickness);
     
     // Use shared rendering pipeline to get the glass color
     fragColor = renderLiquidGlass(
@@ -215,7 +205,7 @@ void main() {
         uRefractiveIndex, 
         uChromaticAberration, 
         uGlassColor, 
-        uLightAngle, 
+        uLightDirection, 
         uLightIntensity, 
         uAmbientStrength, 
         uBackgroundTexture, 
