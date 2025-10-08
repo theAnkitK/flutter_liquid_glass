@@ -1,3 +1,7 @@
+## 0.1.1-dev.13
+
+ - **DOCS**: update README and add better disclaimer (#80).
+
 ## 0.1.1-dev.12
 
 > Note: This release has breaking changes.

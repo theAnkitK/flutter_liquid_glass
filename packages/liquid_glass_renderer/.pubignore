@@ -28,4 +28,8 @@ pubspec_overrides.yaml
 .flutter-plugins
 .flutter-plugins-dependencies
 
-doc/
+doc/showcase.gif
+doc/clock.gif
+doc/example.gif
+doc/shapes.png
+doc/blended.png
