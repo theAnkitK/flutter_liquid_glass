@@ -51,8 +51,10 @@ class LiquidStretch extends StatelessWidget {
         final scale = value == null ? 1.0 : interactionScale;
         return SingleMotionBuilder(
           value: scale,
-          motion:
-              const Motion.smoothSpring(duration: Duration(milliseconds: 300)),
+          motion: const Motion.smoothSpring(
+            duration: Duration(milliseconds: 300),
+            snapToEnd: true,
+          ),
           builder: (context, value, child) => Transform.scale(
             scale: value,
             child: child,
@@ -60,8 +62,8 @@ class LiquidStretch extends StatelessWidget {
           child: MotionBuilder(
             value: value?.withResistance(.08) ?? Offset.zero,
             motion: value == null
-                ? const Motion.bouncySpring()
-                : const Motion.interactiveSpring(),
+                ? const Motion.bouncySpring(snapToEnd: true)
+                : const Motion.interactiveSpring(snapToEnd: true),
             converter: const OffsetMotionConverter(),
             builder: (context, value, child) => _RawGlassStretch(
               stretch: value * stretch,
@@ -87,11 +89,6 @@ class _RawGlassStretch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (stretch == Offset.zero) {
-      // Skip any transformations if there's no stretch
-      return child;
-    }
-
     final scale = getScale(stretch: stretch);
     final matrix = Matrix4.identity()
       ..scaleByDouble(scale.dx, scale.dy, 1, 1)

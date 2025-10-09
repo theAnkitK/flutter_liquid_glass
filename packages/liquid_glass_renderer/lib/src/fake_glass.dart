@@ -180,6 +180,7 @@ class _RenderFakeGlass extends RenderProxyBox {
   }
 
   void _paintSpecular(Canvas canvas, Path path) {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     // Compute alignments from light angle
     final radians = settings.lightAngle;
 
@@ -187,7 +188,10 @@ class _RenderFakeGlass extends RenderProxyBox {
     final y = -1 * math.sin(radians);
 
     final color = Colors.white.withValues(
-      alpha: settings.lightIntensity.clamp(0, 1),
+      alpha: switch (defaultTargetPlatform) {
+        TargetPlatform.iOS => settings.lightIntensity.clamp(0, 1) * 2,
+        _ => settings.lightIntensity.clamp(0, 1),
+      },
     );
     final shader = LinearGradient(
       colors: [
@@ -204,14 +208,14 @@ class _RenderFakeGlass extends RenderProxyBox {
 
     final paint = Paint()
       ..shader = shader
-      ..blendMode = BlendMode.lighten
+      ..blendMode = BlendMode.softLight
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
     if (defaultTargetPlatform != TargetPlatform.iOS) {
       paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, .7);
     } else {
-      paint.strokeWidth = 2;
+      paint.strokeWidth = 3;
     }
 
     canvas.drawPath(path, paint);

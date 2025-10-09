@@ -52,24 +52,13 @@ class GlassGlow extends StatelessWidget {
   }
 
   void _handlePointer(BuildContext context, PointerEvent event) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox != null) {
-      final layerState = GlassGlowLayer.maybeOf(context);
-      final layerRenderBox =
-          layerState?.context.findRenderObject() as RenderBox?;
-      if (layerRenderBox != null) {
-        final layerLocalPosition = layerRenderBox.globalToLocal(event.position);
-        final center = Offset(
-          layerRenderBox.size.width / 2,
-          layerRenderBox.size.height / 2,
-        );
-        layerState?.updateTouch(
-          layerLocalPosition - center,
-          radius: glowRadius,
-          color: glowColor,
-        );
-      }
-    }
+    final layerState = GlassGlowLayer.maybeOf(context);
+
+    layerState?.updateTouch(
+      event.localPosition,
+      radius: glowRadius,
+      color: glowColor,
+    );
   }
 
   void _removeTouch(BuildContext context) {
@@ -101,6 +90,7 @@ class GlassGlowLayer extends StatefulWidget {
   @internal
   // ignore: public_member_api_docs
   static GlassGlowLayerState? maybeOf(BuildContext context) {
+    if (!context.mounted) return null;
     return context.findAncestorStateOfType<GlassGlowLayerState>();
   }
 }
@@ -112,18 +102,21 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
     vsync: this,
     converter: const OffsetMotionConverter(),
     initialValue: Offset.zero,
-    motion: const Motion.smoothSpring(duration: Duration(seconds: 1)),
+    motion: const Motion.smoothSpring(
+      duration: Duration(seconds: 1),
+      snapToEnd: true,
+    ),
   );
 
   late final _alphaController = BoundedSingleMotionController(
     vsync: this,
-    motion: const Motion.smoothSpring(),
+    motion: const Motion.smoothSpring(snapToEnd: true),
   );
 
   late final _radiusController = SingleMotionController(
     vsync: this,
-    motion: const Motion.smoothSpring(),
-    initialValue: 1,
+    motion: const Motion.smoothSpring(snapToEnd: true),
+    initialValue: 10,
   );
 
   bool _dragging = false;
@@ -143,13 +136,15 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
     required double radius,
     required Color color,
   }) {
-    _baseRadius = radius;
-    _baseColor = color;
+    setState(() {
+      _baseRadius = radius;
+      _baseColor = color;
+    });
 
     if (!_dragging) {
       _dragging = true;
-      _radiusController.motion =
-          _alphaController.motion = const Motion.interactiveSpring();
+      _radiusController.motion = _alphaController.motion =
+          const Motion.interactiveSpring(snapToEnd: true);
       _radiusController.animateTo(1, from: 0);
       _alphaController.animateTo(1, from: 0);
     }
@@ -160,7 +155,7 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
   void removeTouch() {
     if (!_dragging) return;
     _radiusController.motion =
-        _alphaController.motion = const Motion.smoothSpring();
+        _alphaController.motion = const Motion.smoothSpring(snapToEnd: true);
     _dragging = false;
     _offsetController.animateTo(Offset.zero);
     _radiusController.animateTo(10);
@@ -176,6 +171,10 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
         _radiusController,
       ]),
       builder: (context, child) {
+        print(_alphaController.value);
+        print(_radiusController.value);
+        print(_offsetController.value);
+
         return _RenderGlassGlowLayerWidget(
           glowRadius: _baseRadius * _radiusController.value,
           glowColor: _baseColor.withValues(
@@ -264,13 +263,9 @@ class _RenderGlassGlowLayer extends RenderProxyBox {
       return;
     }
 
-    final canvas = context.canvas;
-    final bounds = offset & size;
+    final canvas = context.canvas..save();
 
-    canvas.save();
-
-    final center = bounds.center;
-    final glowPosition = center + _glowOffset;
+    final glowPosition = offset + _glowOffset;
 
     final gradient = RadialGradient(
       colors: [

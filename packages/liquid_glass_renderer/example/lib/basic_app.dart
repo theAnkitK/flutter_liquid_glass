@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
@@ -16,6 +18,7 @@ final settingsNotifier = ValueNotifier(
     refractiveIndex: 1.2,
     lightIntensity: .8,
     saturation: 1.2,
+    lightAngle: pi / 4,
     glassColor: Colors.white.withValues(alpha: 0.2),
   ),
 );
@@ -60,23 +63,46 @@ class BasicApp extends HookWidget {
                       context,
                     ).barBackgroundColor.withValues(alpha: 0.4),
                   );
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
+                  return Column(
                     spacing: 16,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      LiquidStretch(
-                        child: LiquidGlass(
-                          settings: settings,
-                          shape: LiquidRoundedSuperellipse(
-                            borderRadius: Radius.circular(20),
-                          ),
-                          child: GlassGlow(
-                            child: SizedBox.square(
-                              dimension: 100,
-                              child: Center(child: Text('REAL')),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        spacing: 16,
+                        children: [
+                          LiquidStretch(
+                            child: LiquidGlass(
+                              settings: settings,
+                              shape: LiquidRoundedSuperellipse(
+                                borderRadius: Radius.circular(20),
+                              ),
+                              child: GlassGlow(
+                                child: SizedBox.square(
+                                  dimension: 100,
+                                  child: Center(child: Text('REAL')),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                          LiquidStretch(
+                            child: FakeGlass(
+                              settings: settings,
+                              shape: LiquidRoundedSuperellipse(
+                                borderRadius: Radius.circular(20),
+                              ),
+                              child: GlassGlow(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  child: SizedBox.square(
+                                    dimension: 100,
+                                    child: Center(child: Text('FAKE')),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       LiquidStretch(
                         child: FakeGlass(
@@ -87,8 +113,9 @@ class BasicApp extends HookWidget {
                           child: GlassGlow(
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              child: SizedBox.square(
-                                dimension: 100,
+                              child: SizedBox(
+                                width: 400,
+                                height: 64,
                                 child: Center(child: Text('FAKE')),
                               ),
                             ),
