@@ -7,15 +7,6 @@ mat2 rotate2d(float angle) {
     return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
 }
 
-// Compute Y coordinate reversing it for OpenGL backend
-float computeY(float coordY, vec2 size) {
-    #ifdef IMPELLER_TARGET_OPENGLES
-        return 1.0 - (coordY / size.y);
-    #else
-        return coordY / size.y;
-    #endif
-}
-
 // Optimized Kawase blur function - 5 samples instead of 13 (60-70% performance improvement)
 vec4 applyKawaseBlur(sampler2D tex, vec2 uv, vec2 texelSize, float blurRadius) {
     // Early return for no blur - only 1 texture sample

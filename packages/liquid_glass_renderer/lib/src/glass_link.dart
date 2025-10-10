@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 
 /// A link that connects liquid glass shapes to their parent layer for
@@ -63,7 +64,7 @@ class GlassLink with ChangeNotifier {
       final renderObject = entry.key;
       final shapeInfo = entry.value;
 
-      if (renderObject is RenderBox &&
+      if (renderObject is RenderLiquidGlass &&
           renderObject.attached &&
           renderObject.hasSize) {
         try {
@@ -80,7 +81,7 @@ class GlassLink with ChangeNotifier {
               shape: shapeInfo.shape,
               glassContainsChild: shapeInfo.glassContainsChild,
               globalBounds: rect,
-              transform: transform,
+              globalTransform: transform,
             ),
           );
         } catch (e) {
@@ -150,11 +151,11 @@ class ComputedShapeInfo {
     required this.shape,
     required this.glassContainsChild,
     required this.globalBounds,
-    required this.transform,
+    required this.globalTransform,
   });
 
   /// The render object for this shape.
-  final RenderObject renderObject;
+  final RenderLiquidGlass renderObject;
 
   /// The liquid shape.
   final LiquidShape shape;
@@ -166,5 +167,5 @@ class ComputedShapeInfo {
   final Rect globalBounds;
 
   /// The transform matrix for the shape.
-  final Matrix4 transform;
+  final Matrix4 globalTransform;
 }

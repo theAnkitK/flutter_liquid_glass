@@ -163,6 +163,15 @@ vec3 getNormal(vec2 p, float thickness) {
     return getReconstructedNormal(p, thickness);
 }
 
+// Compute Y coordinate reversing it for OpenGL backend
+float computeY(float coordY, vec2 size) {
+    #ifdef IMPELLER_TARGET_OPENGLES
+        return 1.0 - (coordY / size.y);
+    #else
+        return coordY / size.y;
+    #endif
+}
+
 void main() {
     vec2 fragCoord = FlutterFragCoord().xy;
 

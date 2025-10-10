@@ -18,11 +18,12 @@ precision mediump float;
 
 // Optimized uniform layout - grouped into vectors for better performance
 layout(location = 0) uniform vec2 uSize;                    // width, height
-layout(location = 1) uniform vec4 uGlassColor;             // r, g, b, a
-layout(location = 2) uniform vec4 uOpticalProps;           // refractiveIndex, chromaticAberration, thickness, blend
-layout(location = 3) uniform vec4 uLightConfig;            // angle, intensity, ambient, saturation
-layout(location = 4) uniform float uNumShapes;             // numShapes  
-layout(location = 5) uniform vec2 uLightDirection;         // pre-computed cos(angle), sin(angle)
+layout(location = 1) uniform vec4 uBoundingBox;            // minX, minY, maxX, maxY (in screen space, multiplied by dpr)
+layout(location = 2) uniform vec4 uGlassColor;             // r, g, b, a
+layout(location = 3) uniform vec4 uOpticalProps;           // refractiveIndex, chromaticAberration, thickness, blend
+layout(location = 4) uniform vec4 uLightConfig;            // angle, intensity, ambient, saturation
+layout(location = 5) uniform float uNumShapes;             // numShapes  
+layout(location = 6) uniform vec2 uLightDirection;         // pre-computed cos(angle), sin(angle)
 
 // Extract individual values for backward compatibility
 float uChromaticAberration = uOpticalProps.y;
@@ -37,7 +38,7 @@ float uSaturation = uLightConfig.w;
 // Shape array uniforms - 6 floats per shape (type, centerX, centerY, sizeW, sizeH, cornerRadius)
 // Reduced from 64 to 16 shapes to fit Impeller's uniform buffer limit (16 * 6 = 96 floats vs 384)
 #define MAX_SHAPES 16
-layout(location = 10) uniform float uShapeData[MAX_SHAPES * 6];
+layout(location = 7) uniform float uShapeData[MAX_SHAPES * 6];
 
 uniform sampler2D uBackgroundTexture;
 layout(location = 0) out vec4 fragColor;
@@ -170,6 +171,12 @@ void main() {
     #else
         vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
     #endif
+    
+    if (fragCoord.x < uBoundingBox.x || fragCoord.x > uBoundingBox.z ||
+        fragCoord.y < uBoundingBox.y || fragCoord.y > uBoundingBox.w) {
+        fragColor = texture(uBackgroundTexture, screenUV);
+        return;
+    }
     
     // Generate shape and calculate normal using shader-specific method
     float sd = sceneSDF(fragCoord);

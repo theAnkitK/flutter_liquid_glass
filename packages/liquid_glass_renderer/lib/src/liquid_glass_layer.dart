@@ -157,6 +157,47 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 /// buffer limit
 const int _maxShapesPerLayer = 16;
 
+/// Cached metrics that are calculated for all shapes in a layer
+typedef _ShapesMetrics = ({
+  double thickness,
+  Rect boundingBox,
+});
+
+@internal
+class ShapeInLayer extends ComputedShapeInfo {
+  ShapeInLayer({
+    required super.renderObject,
+    required super.shape,
+    required super.glassContainsChild,
+    required super.globalBounds,
+    required super.globalTransform,
+    required this.transformToLayer,
+    required this.rawShape,
+  });
+
+  factory ShapeInLayer.fromComputed({
+    required ComputedShapeInfo info,
+    required Matrix4 toLayer,
+    required RawShape rawShape,
+  }) {
+    return ShapeInLayer(
+      renderObject: info.renderObject,
+      rawShape: rawShape,
+      shape: info.shape,
+      glassContainsChild: info.glassContainsChild,
+      globalBounds: info.globalBounds,
+      globalTransform: info.globalTransform,
+      transformToLayer: toLayer,
+    );
+  }
+
+  /// The transform from the shape's render object to the layer's render object.
+  final Matrix4 transformToLayer;
+
+  /// The shape data used to render this shape in the shader.
+  final RawShape rawShape;
+}
+
 @internal
 class RenderLiquidGlassLayer extends RenderProxyBox {
   RenderLiquidGlassLayer({
@@ -182,6 +223,7 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
   set restrictThickness(bool value) {
     if (_restrictThickness == value) return;
     _restrictThickness = value;
+    _cache = null;
     markNeedsPaint();
   }
 
@@ -194,6 +236,7 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
   set devicePixelRatio(double value) {
     if (_devicePixelRatio == value) return;
     _devicePixelRatio = value;
+    _cache = null;
     markNeedsPaint();
   }
 
@@ -202,7 +245,12 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
   LiquidGlassSettings _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
+    final thicknessChanged = _settings.thickness != value.thickness;
+    final blurChanged = _settings.blur != value.blur;
     _settings = value;
+    if (thicknessChanged || blurChanged) {
+      _cache = null;
+    }
     markNeedsPaint();
   }
 
@@ -213,12 +261,16 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
     markNeedsPaint();
   }
 
+  // Cache for computed shapes to avoid recomputing on every paint
+  (List<ShapeInLayer>, _ShapesMetrics)? _cache;
+
   void _onGlassLinkChanged() {
+    _cache = null;
     markNeedsPaint();
   }
 
-  List<(RenderLiquidGlass, RawShape)> collectShapes() {
-    final result = <(RenderLiquidGlass, RawShape)>[];
+  (List<ShapeInLayer>, _ShapesMetrics) _collectShapes() {
+    final result = <ShapeInLayer>[];
     final computedShapes = _glassLink.computedShapes;
 
     // Check shape count limit
@@ -228,26 +280,39 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
       );
     }
 
+    var boundingBox = Rect.zero;
+    var thickness = _settings.thickness;
+
     for (final shapeInfo in computedShapes) {
       final renderObject = shapeInfo.renderObject;
 
-      if (renderObject is RenderLiquidGlass) {
-        final scale = _getScaleFromTransform(shapeInfo.transform);
-        result.add(
-          (
-            renderObject,
-            RawShape.fromLiquidGlassShape(
-              shapeInfo.shape,
-              center: shapeInfo.globalBounds.center,
-              size: shapeInfo.globalBounds.size,
-              scale: scale,
-            ),
-          ),
-        );
+      final scale = _getScaleFromTransform(shapeInfo.globalTransform);
+
+      final shapeInLayer = ShapeInLayer.fromComputed(
+        info: shapeInfo,
+        toLayer: renderObject.getTransformTo(this),
+        rawShape: RawShape.fromLiquidGlassShape(
+          shapeInfo.shape,
+          center: shapeInfo.globalBounds.center,
+          size: shapeInfo.globalBounds.size,
+          scale: scale,
+        ),
+      );
+      result.add(shapeInLayer);
+
+      boundingBox = boundingBox.expandToInclude(shapeInLayer.rawShape.rect);
+
+      if (_restrictThickness &&
+          thickness > shapeInLayer.rawShape.size.shortestSide) {
+        thickness = shapeInLayer.rawShape.size.shortestSide;
       }
     }
 
-    return result;
+    // Inflate by blend plus one logical pixel to avoid artifacts on edges
+    boundingBox =
+        boundingBox.inflate((_settings.blend + 1) * _devicePixelRatio);
+
+    return (result, (thickness: thickness, boundingBox: boundingBox));
   }
 
   /// Extracts the geometric mean of X and Y scale factors from a transform.
@@ -292,7 +357,8 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final shapes = collectShapes();
+    // Use cached shapes if available, otherwise compute them
+    final (shapes, metrics) = _cache ??= _collectShapes();
 
     if (shapes.isEmpty) {
       super.paint(context, offset);
@@ -308,17 +374,16 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
 
     final shapeCount = min(_maxShapesPerLayer, shapes.length);
 
-    var thickness = _settings.thickness;
-
-    if (_restrictThickness && shapes.isNotEmpty) {
-      final smallestShape = shapes.reduce(
-        (a, b) => a.$2.size.shortestSide < b.$2.size.shortestSide ? a : b,
-      );
-      thickness = min(thickness, smallestShape.$2.size.shortestSide);
-    }
+    final (:thickness, :boundingBox) = metrics;
 
     _shader.setFloatUniforms(initialIndex: 2, (value) {
       value
+        ..setFloats([
+          boundingBox.left * _devicePixelRatio,
+          boundingBox.top * _devicePixelRatio,
+          boundingBox.right * _devicePixelRatio,
+          boundingBox.bottom * _devicePixelRatio,
+        ])
         ..setColor(_settings.glassColor)
         ..setFloats([
           _settings.refractiveIndex,
@@ -339,7 +404,7 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
         );
 
       for (var i = 0; i < shapeCount; i++) {
-        final shape = i < shapes.length ? shapes[i].$2 : RawShape.none;
+        final shape = i < shapes.length ? shapes[i].rawShape : RawShape.none;
         value
           ..setFloat(shape.type.index.toDouble())
           ..setFloat(shape.center.dx * _devicePixelRatio)
@@ -362,12 +427,10 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
 
     final clipPath = Path();
     for (final shape in shapes) {
-      final globalTransform = shape.$1.getTransformTo(this);
-
       clipPath.addPath(
-        shape.$1.getPath(),
+        shape.renderObject.getPath(),
         offset,
-        matrix4: globalTransform.storage,
+        matrix4: shape.transformToLayer.storage,
       );
     }
 
@@ -425,18 +488,16 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
   void _paintShapeContents(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlass, RawShape)> shapes, {
+    List<ShapeInLayer> shapes, {
     required bool glassContainsChild,
   }) {
-    for (final (ro, _) in shapes) {
-      if (ro.glassContainsChild == glassContainsChild) {
-        final transform = ro.getTransformTo(this);
-
+    for (final ShapeInLayer(:renderObject, :transformToLayer) in shapes) {
+      if (renderObject.glassContainsChild == glassContainsChild) {
         context.pushTransform(
           true,
           offset,
-          transform,
-          ro.paintFromLayer,
+          transformToLayer,
+          renderObject.paintFromLayer,
         );
       }
     }
