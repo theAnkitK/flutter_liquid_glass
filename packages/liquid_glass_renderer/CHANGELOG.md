@@ -1,3 +1,7 @@
+## 0.1.1-dev.20
+
+ - **FIX**: `resistance` parameter didn't actually get used.
+
 ## 0.1.1-dev.19
 
 > Note: This release has breaking changes.
