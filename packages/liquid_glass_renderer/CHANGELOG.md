@@ -1,3 +1,8 @@
+## 0.1.1-dev.18
+
+ - **FIX**: removed unused transform from shader (#88).
+ - **FIX**: render liquid glass correctly on all Android devices (#82 by @teociaps).
+
 ## 0.1.1-dev.17
 
  - **FEAT**: tried to improve the fidelity of fake light once more.
