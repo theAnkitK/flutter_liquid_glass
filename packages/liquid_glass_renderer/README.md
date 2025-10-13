@@ -193,6 +193,8 @@ LiquidGlassLayer(
 
 
 > ⚠️ `Glassify` is experimental. It is significantly less performant and will produce lower-quality results than `LiquidGlass`. 
+>
+> **Don't use it in production unless you have clearly tested and validated it on your target devices.**
 > 
 > **Never use it for primitive shapes that could be rendered with `LiquidGlass`!**
 
@@ -210,6 +212,9 @@ To make it look best, consider a few key tips:
 - Colors help maintain readability
 
 ```dart
+// Important: You need to import from experimental.dart
+import 'package:liquid_glass_renderer/experimental.dart';
+
 Center(
   child: Glassify(
     settings: const LiquidGlassSettings(
