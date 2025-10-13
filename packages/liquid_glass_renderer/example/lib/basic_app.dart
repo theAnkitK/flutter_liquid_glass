@@ -89,7 +89,6 @@ class BasicApp extends HookWidget {
                             ),
                           ),
                           LiquidStretch(
-                            stretch: 10,
                             child: FakeGlass(
                               settings: settings,
                               shape: LiquidRoundedSuperellipse(

@@ -18,13 +18,17 @@ class LiquidStretch extends StatelessWidget {
     required this.child,
     this.interactionScale = 1.05,
     this.stretch = .5,
+    this.hitTestBehavior = HitTestBehavior.opaque,
     super.key,
   });
 
   /// The scale factor to apply when the user is interacting with the widget.
   ///
   /// A value of 1.0 means no scaling.
-  /// A value greater than 1.0 means the widget will scale up.
+  ///
+  /// A value greater than 2.0 means the widget will grow to double its
+  /// original size.
+  ///
   /// A value less than 1.0 means the widget will scale down.
   ///
   /// Defaults to 1.05.
@@ -33,10 +37,16 @@ class LiquidStretch extends StatelessWidget {
   /// The factor to multiply the drag offset by to determine the stretch
   /// amount in pixels.
   ///
-  /// A value of 0.0 means no stretch.
+  /// A value of 0.0 means no stretch, while a value of 1.0 means the stretch
+  /// would match the drag offset exactly (which you probably don't want).
   ///
   /// Defaults to 0.5.
   final double stretch;
+
+  /// The hit test behavior for the internal gesture Listener.
+  ///
+  /// Defaults to [HitTestBehavior.opaque].
+  final HitTestBehavior hitTestBehavior;
 
   /// The child widget to apply the stretch effect to.
   final Widget child;
@@ -48,6 +58,7 @@ class LiquidStretch extends StatelessWidget {
     }
 
     return GlassDragBuilder(
+      behavior: hitTestBehavior,
       builder: (context, value, child) {
         final scale = value == null ? 1.0 : interactionScale;
         return SingleMotionBuilder(
@@ -66,9 +77,9 @@ class LiquidStretch extends StatelessWidget {
                 ? const Motion.bouncySpring(snapToEnd: true)
                 : const Motion.interactiveSpring(snapToEnd: true),
             converter: const OffsetMotionConverter(),
-            builder: (context, value, child) => _RawGlassStretch(
+            builder: (context, value, child) => RawLiquidStretch(
               stretchPixels: value * stretch,
-              child: child!,
+              child: child,
             ),
             child: child,
           ),
@@ -102,20 +113,21 @@ class RawLiquidStretch extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _RenderGlassStretch(stretchPixels: stretchPixels);
+    return RenderRawLiquidStretch(stretchPixels: stretchPixels);
   }
 
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderGlassStretch renderObject,
+    RenderRawLiquidStretch renderObject,
   ) {
     renderObject.stretchPixels = stretchPixels;
   }
 }
 
-class _RenderGlassStretch extends RenderProxyBox {
-  _RenderGlassStretch({
+@internal
+class RenderRawLiquidStretch extends RenderProxyBox {
+  RenderRawLiquidStretch({
     required Offset stretchPixels,
   }) : _stretchPixels = stretchPixels;
 
@@ -138,7 +150,7 @@ class _RenderGlassStretch extends RenderProxyBox {
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final Matrix4? transform = _getEffectiveTransform();
+    final transform = _getEffectiveTransform();
     if (transform == null) {
       return super.hitTestChildren(result, position: position);
     }
@@ -158,14 +170,14 @@ class _RenderGlassStretch extends RenderProxyBox {
       return;
     }
 
-    final Matrix4? transform = _getEffectiveTransform();
+    final transform = _getEffectiveTransform();
     if (transform == null) {
       super.paint(context, offset);
       return;
     }
 
     // Check if the matrix is singular
-    final double det = transform.determinant();
+    final det = transform.determinant();
     if (det == 0 || !det.isFinite) {
       layer = null;
       return;
@@ -182,17 +194,15 @@ class _RenderGlassStretch extends RenderProxyBox {
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    final Matrix4? effectiveTransform = _getEffectiveTransform();
+    final effectiveTransform = _getEffectiveTransform();
     if (effectiveTransform != null) {
       transform.multiply(effectiveTransform);
     }
   }
 
   Matrix4? _getEffectiveTransform() {
-    if (_stretchPixels == Offset.zero || !size.isEmpty) {
-      if (_stretchPixels == Offset.zero) {
-        return null;
-      }
+    if (_stretchPixels == Offset.zero) {
+      return null;
     }
 
     final scale = getScale(
@@ -213,7 +223,7 @@ class _RenderGlassStretch extends RenderProxyBox {
     required Size size,
   }) {
     if (size.isEmpty) {
-      return const Offset(1.0, 1.0);
+      return const Offset(1, 1);
     }
 
     final stretchX = stretchPixels.dx.abs();
@@ -245,7 +255,16 @@ class _RenderGlassStretch extends RenderProxyBox {
   }
 }
 
-extension on Offset {
+/// Provides [withResistance] method to apply drag resistance to an [Offset].
+extension DragResistanceExtension on Offset {
+  /// Returns a new [Offset] with a given [resistance] applied, which will
+  /// hold it back the further it deviates from [Offset.zero].
+  ///
+  /// Applies a non-linear damping effect that reduces the offset's magnitude
+  /// while preserving its direction. Higher resistance values create stronger
+  /// damping.
+  /// Larger offsets are reduced more aggressively than smaller ones,
+  /// creating a natural "stretch resistance" effect commonly used in scrolling.
   Offset withResistance(double resistance) {
     if (resistance == 0) return this;
 
