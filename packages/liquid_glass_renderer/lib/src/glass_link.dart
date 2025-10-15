@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 
 /// A link that connects liquid glass shapes to their parent layer for
@@ -7,9 +10,14 @@ import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 ///
 /// This replaces the ticker-based approach with an event-driven system
 /// similar to follow_the_leader's LeaderLink pattern.
+@internal
 class GlassLink with ChangeNotifier {
   /// Creates a new [GlassLink].
   GlassLink();
+
+  static GlassLink of(BuildContext context) {
+    return LiquidGlassScope.of(context).link;
+  }
 
   /// Information about a shape registered with this link.
   final Map<RenderObject, GlassShapeInfo> _shapes = {};

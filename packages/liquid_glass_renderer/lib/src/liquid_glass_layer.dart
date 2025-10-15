@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/raw_shapes.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
@@ -86,6 +87,14 @@ class LiquidGlassLayer extends StatefulWidget {
 
 class _LiquidGlassLayerState extends State<LiquidGlassLayer>
     with SingleTickerProviderStateMixin {
+  late final _glassLink = GlassLink();
+
+  @override
+  void dispose() {
+    _glassLink.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!ImageFilter.isShaderFilterSupported) {
@@ -100,16 +109,21 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
     }
 
     return RepaintBoundary(
-      child: ShaderBuilder(
-        assetKey: liquidGlassShader,
-        (context, shader, child) => _RawShapes(
-          shader: shader,
-          settings: widget.settings,
-          debugRenderRefractionMap: false,
-          restrictThickness: widget.restrictThickness,
-          child: child!,
+      child: LiquidGlassScope(
+        settings: widget.settings,
+        link: _glassLink,
+        child: ShaderBuilder(
+          assetKey: liquidGlassShader,
+          (context, shader, child) => _RawShapes(
+            shader: shader,
+            settings: widget.settings,
+            debugRenderRefractionMap: false,
+            restrictThickness: widget.restrictThickness,
+            glassLink: _glassLink,
+            child: child!,
+          ),
+          child: widget.child,
         ),
-        child: widget.child,
       ),
     );
   }
@@ -122,12 +136,14 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     required this.debugRenderRefractionMap,
     required this.restrictThickness,
     required Widget super.child,
+    required this.glassLink,
   });
 
   final FragmentShader shader;
   final LiquidGlassSettings settings;
   final bool debugRenderRefractionMap;
   final bool restrictThickness;
+  final GlassLink glassLink;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -137,6 +153,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       settings: settings,
       debugRenderRefractionMap: debugRenderRefractionMap,
       restrictThickness: restrictThickness,
+      glassLink: glassLink,
     );
   }
 
@@ -164,14 +181,14 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
     required FragmentShader shader,
     required LiquidGlassSettings settings,
     required bool restrictThickness,
+    required GlassLink glassLink,
     bool debugRenderRefractionMap = false,
   })  : _devicePixelRatio = devicePixelRatio,
         _shader = shader,
         _settings = settings,
         _debugRenderRefractionMap = debugRenderRefractionMap,
         _restrictThickness = restrictThickness,
-        _glassLink = GlassLink() {
-    // Listen to glass link changes instead of using a ticker
+        _glassLink = glassLink {
     _glassLink.addListener(_onGlassLinkChanged);
   }
 
@@ -413,9 +430,7 @@ class RenderLiquidGlassLayer extends RenderProxyBox {
 
   @override
   void dispose() {
-    _glassLink
-      ..removeListener(_onGlassLinkChanged)
-      ..dispose();
+    _glassLink.removeListener(_onGlassLinkChanged);
     _blurLayerHandle.layer = null;
     _shaderHandle.layer = null;
     _clipLayerHandle.layer = null;
