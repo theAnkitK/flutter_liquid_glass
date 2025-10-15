@@ -62,6 +62,9 @@ class LiquidGlass extends StatelessWidget {
   })  : _settings = null,
         restrictThickness = false;
 
+  /// Maximum number of shapes supported per layer.
+  static const int maxShapesPerLayer = 16;
+
   /// The child of this widget.
   ///
   /// You can choose whether this should be rendered "inside" of the glass, or
