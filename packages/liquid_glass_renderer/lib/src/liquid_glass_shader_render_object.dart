@@ -17,12 +17,10 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     required GlassLink glassLink,
     required LiquidGlassSettings settings,
     required double devicePixelRatio,
-    required bool restrictThickness,
   })  : _shader = shader,
         _settings = settings,
         _glassLink = glassLink,
-        _devicePixelRatio = devicePixelRatio,
-        _restrictThickness = restrictThickness {
+        _devicePixelRatio = devicePixelRatio {
     _glassLink.addListener(onLinkNotification);
     onLinkNotification();
     setSettingsUniforms();
@@ -61,14 +59,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     if (_shader == value) return;
     _shader = value;
     setSettingsUniforms();
-    markNeedsPaint();
-  }
-
-  bool _restrictThickness;
-  bool get restrictThickness => _restrictThickness;
-  set restrictThickness(bool value) {
-    if (_restrictThickness == value) return;
-    _restrictThickness = value;
     markNeedsPaint();
   }
 
@@ -150,8 +140,8 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       return;
     }
 
-    paintLiquidGlass(context, offset, shapes);
     super.paint(context, offset);
+    paintLiquidGlass(context, offset, shapes);
   }
 
   void paintLiquidGlass(

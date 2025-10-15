@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
+import 'package:liquid_glass_renderer/src/raw_shapes.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 class LiquidGlassFilter extends StatefulWidget {
@@ -37,9 +40,10 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
       child: ShaderBuilder(
         (context, shader, child) {
           return _RawLiquidGlassFilter(
+            shader: shader,
             settings: widget.settings,
             glassLink: _glassLink,
-            child: child!,
+            child: child,
           );
         },
         assetKey: liquidGlassShader,
@@ -51,10 +55,13 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
 
 class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
   const _RawLiquidGlassFilter({
-    required super.child,
+    required this.shader,
     required this.settings,
     required this.glassLink,
+    required super.child,
   });
+
+  final FragmentShader shader;
 
   final LiquidGlassSettings settings;
 
@@ -65,6 +72,8 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
     return RenderLiquidGlassFilter(
       settings: settings,
       glassLink: glassLink,
+      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      shader: shader,
     );
   }
 
@@ -73,38 +82,39 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
     BuildContext context,
     RenderLiquidGlassFilter renderObject,
   ) {
-    renderObject.settings = settings;
-    renderObject.glassLink = glassLink;
+    renderObject
+      ..shader = shader
+      ..settings = settings
+      ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
+      ..glassLink = glassLink;
   }
 }
 
-class RenderLiquidGlassFilter extends RenderProxyBox {
+class RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
   RenderLiquidGlassFilter({
-    required LiquidGlassSettings settings,
-    required GlassLink glassLink,
-    RenderBox? child,
-  })  : _settings = settings,
-        _glassLink = glassLink,
-        super(child);
-
-  late LiquidGlassSettings _settings;
-  LiquidGlassSettings get settings => _settings;
-  set settings(LiquidGlassSettings value) {
-    if (_settings != value) {
-      _settings = value;
-      markNeedsPaint();
-    }
-  }
-
-  late GlassLink _glassLink;
-  GlassLink get glassLink => _glassLink;
-  set glassLink(GlassLink value) {
-    if (_glassLink != value) {
-      _glassLink = value;
-      markNeedsPaint();
-    }
-  }
+    required super.devicePixelRatio,
+    required super.settings,
+    required super.glassLink,
+    required super.shader,
+  });
 
   @override
-  void paint(PaintingContext context, Offset offset) {}
+  void paintLiquidGlass(
+    PaintingContext context,
+    Offset offset,
+    List<(RenderLiquidGlass, RawShape)> shapes,
+  ) {
+    paintShapeContents(
+      context,
+      offset,
+      shapes,
+      glassContainsChild: true,
+    );
+    paintShapeContents(
+      context,
+      offset,
+      shapes,
+      glassContainsChild: false,
+    );
+  }
 }

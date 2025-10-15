@@ -148,7 +148,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       shader: shader,
       settings: settings,
-      restrictThickness: restrictThickness,
       glassLink: glassLink,
     );
   }
@@ -159,9 +158,10 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     RenderLiquidGlassLayer renderObject,
   ) {
     renderObject
+      ..shader = shader
+      ..glassLink = glassLink
       ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
-      ..settings = settings
-      ..restrictThickness = restrictThickness;
+      ..settings = settings;
   }
 }
 
@@ -171,7 +171,6 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
     required super.devicePixelRatio,
     required super.shader,
     required super.settings,
-    required super.restrictThickness,
     required super.glassLink,
   });
 
