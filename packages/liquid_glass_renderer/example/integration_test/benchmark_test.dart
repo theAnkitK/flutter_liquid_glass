@@ -39,17 +39,24 @@ void main() {
 
       await binding.traceAction(() async {
         await tester.pumpFrames(
-          const _MultiTestApp(withGlass: true, useLayer: false),
+          const _MultiTestApp(withGlass: true, layer: LayerMode.none),
           duration,
         );
       }, reportKey: 'multi_test_with_separate_glass');
 
       await binding.traceAction(() async {
         await tester.pumpFrames(
-          const _MultiTestApp(withGlass: true, useLayer: true),
+          const _MultiTestApp(withGlass: true, layer: LayerMode.layer),
           duration,
         );
       }, reportKey: 'multi_test_with_glass_layer');
+
+      await binding.traceAction(() async {
+        await tester.pumpFrames(
+          const _MultiTestApp(withGlass: true, layer: LayerMode.layer),
+          duration,
+        );
+      }, reportKey: 'multi_test_with_glass_filter');
     });
   });
 }
@@ -105,6 +112,7 @@ class _SingleTestApp extends StatelessWidget {
         ),
       ),
     );
+
     return MaterialApp(
       home: Scaffold(
         body: _GridPaperBackground(
@@ -129,12 +137,14 @@ class _SingleTestApp extends StatelessWidget {
   }
 }
 
+enum LayerMode { none, filter, layer }
+
 class _MultiTestApp extends StatelessWidget {
-  const _MultiTestApp({this.withGlass = true, this.useLayer = false});
+  const _MultiTestApp({this.withGlass = true, this.layer = LayerMode.none});
 
   final bool withGlass;
 
-  final bool useLayer;
+  final LayerMode layer;
 
   @override
   Widget build(BuildContext context) {
@@ -165,8 +175,8 @@ class _MultiTestApp extends StatelessWidget {
         );
         return Padding(
           padding: const EdgeInsets.all(8.0),
-          child: switch ((withGlass, useLayer)) {
-            (true, false) => LiquidGlass(
+          child: switch ((withGlass, layer)) {
+            (true, LayerMode.none) => LiquidGlass(
               key: Key('liquid_glass_$index'),
               shape: LiquidRoundedSuperellipse(
                 borderRadius: Radius.circular(15),
@@ -174,7 +184,7 @@ class _MultiTestApp extends StatelessWidget {
               settings: settings,
               child: listItem,
             ),
-            (true, true) => LiquidGlass.inLayer(
+            (true, LayerMode.filter || LayerMode.layer) => LiquidGlass.inLayer(
               shape: LiquidRoundedSuperellipse(
                 borderRadius: Radius.circular(15),
               ),
@@ -193,15 +203,31 @@ class _MultiTestApp extends StatelessWidget {
         );
       }),
     );
-    return MaterialApp(
-      home: Scaffold(
-        body: _GridPaperBackground(
-          child: switch (useLayer) {
-            true => LiquidGlassLayer(child: content, settings: settings),
-            false => content,
-          },
+
+    return switch (layer) {
+      LayerMode.none => MaterialApp(
+        home: Scaffold(
+          body: _GridPaperBackground(child: Center(child: content)),
         ),
       ),
-    );
+      LayerMode.filter => LiquidGlassFilter(
+        settings: settings,
+        child: MaterialApp(
+          home: Scaffold(
+            body: _GridPaperBackground(child: Center(child: content)),
+          ),
+        ),
+      ),
+      LayerMode.layer => MaterialApp(
+        home: Scaffold(
+          body: _GridPaperBackground(
+            child: LiquidGlassLayer(
+              settings: settings,
+              child: Center(child: content),
+            ),
+          ),
+        ),
+      ),
+    };
   }
 }
