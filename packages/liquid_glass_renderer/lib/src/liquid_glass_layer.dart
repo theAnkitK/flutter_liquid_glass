@@ -186,6 +186,7 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
     PaintingContext context,
     Offset offset,
     List<(RenderLiquidGlass, RawShape)> shapes,
+    Path clipPath,
   ) {
     final shaderLayer = (_shaderHandle.layer ??= BackdropFilterLayer())
       ..filter = ImageFilter.shader(shader);
@@ -196,17 +197,6 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
         sigmaX: settings.blur,
         sigmaY: settings.blur,
       );
-
-    final clipPath = Path();
-    for (final shape in shapes) {
-      final globalTransform = shape.$1.getTransformTo(this);
-
-      clipPath.addPath(
-        shape.$1.getPath(),
-        offset,
-        matrix4: globalTransform.storage,
-      );
-    }
 
     final clipLayer = (_clipLayerHandle.layer ??= ClipPathLayer())
       ..clipPath = clipPath

@@ -43,10 +43,12 @@ class BasicApp extends HookWidget {
       child: ListenableBuilder(
         listenable: settingsNotifier,
         builder: (context, child) {
-          return LiquidGlassFilter(
-            settings: settingsNotifier.value,
-            child: child!,
+          final settings = settingsNotifier.value.copyWith(
+            glassColor: CupertinoTheme.of(
+              context,
+            ).barBackgroundColor.withValues(alpha: 0.4),
           );
+          return LiquidGlassFilter(settings: settings, child: child!);
         },
         child: CupertinoPageScaffold(
           child: Stack(

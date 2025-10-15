@@ -141,13 +141,26 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     }
 
     super.paint(context, offset);
-    paintLiquidGlass(context, offset, shapes);
+
+    final clipPath = Path();
+    for (final shape in shapes) {
+      final globalTransform = shape.$1.getTransformTo(this);
+
+      clipPath.addPath(
+        shape.$1.getPath(),
+        offset,
+        matrix4: globalTransform.storage,
+      );
+    }
+
+    paintLiquidGlass(context, offset, shapes, clipPath);
   }
 
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
     List<(RenderLiquidGlass, RawShape)> shapes,
+    Path clipPath,
   );
 
   @protected
