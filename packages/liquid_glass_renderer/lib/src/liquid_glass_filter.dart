@@ -113,15 +113,18 @@ class RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
     Offset offset,
     List<(RenderLiquidGlass, RawShape)> shapes,
   ) {
-    final layer = (this.layer ??= _ShaderLayer(
-      shader: shader,
-      offset: Offset.zero,
-      devicePixelRatio: devicePixelRatio,
-      bounds: Offset.zero & size,
-    ))
+    var shapeBounds = shapes.first.$2.topLeft & shapes.first.$2.size;
+
+    for (final (_, rawShape) in shapes) {
+      shapeBounds =
+          shapeBounds.expandToInclude(rawShape.topLeft & rawShape.size);
+    }
+
+    final layer = (this.layer ??= _ShaderLayer())
       ..shader = shader
       ..devicePixelRatio = devicePixelRatio
-      ..bounds = Offset.zero & size
+      ..bounds = offset & size
+      ..shapeBounds = shapeBounds
       ..markNeedsAddToScene();
 
     paintShapeContents(
@@ -150,33 +153,34 @@ class RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
 /// Custom composited layer that handles the liquid glass shader effect
 /// with a captured child image
 class _ShaderLayer extends OffsetLayer {
-  _ShaderLayer({
-    required super.offset,
-    required FragmentShader shader,
-    required double devicePixelRatio,
-    required Rect bounds,
-  })  : _shader = shader,
-        _devicePixelRatio = devicePixelRatio,
-        _bounds = bounds;
+  _ShaderLayer();
 
-  FragmentShader _shader;
-  FragmentShader get shader => _shader;
+  FragmentShader? _shader;
+  FragmentShader get shader => _shader!;
   set shader(FragmentShader value) {
     if (_shader == value) return;
     _shader = value;
     markNeedsAddToScene();
   }
 
-  Rect _bounds;
-  Rect get bounds => _bounds;
+  Rect? _bounds;
+  Rect get bounds => _bounds!;
   set bounds(Rect value) {
     if (_bounds == value) return;
     _bounds = value;
     markNeedsAddToScene();
   }
 
-  double _devicePixelRatio;
-  double get devicePixelRatio => _devicePixelRatio;
+  Rect? _shapeBounds;
+  Rect get shapeBounds => _shapeBounds!;
+  set shapeBounds(Rect value) {
+    if (_shapeBounds == value) return;
+    _shapeBounds = value;
+    markNeedsAddToScene();
+  }
+
+  double? _devicePixelRatio;
+  double get devicePixelRatio => _devicePixelRatio!;
   set devicePixelRatio(double value) {
     if (_devicePixelRatio == value) return;
     _devicePixelRatio = value;
@@ -195,13 +199,19 @@ class _ShaderLayer extends OffsetLayer {
     if (childImage != null) {
       shader
         ..setImageSampler(0, childImage!)
-        ..setFloat(0, bounds.width * devicePixelRatio)
-        ..setFloat(1, bounds.height * devicePixelRatio);
+        ..setFloat(0, shapeBounds.width * devicePixelRatio)
+        ..setFloat(1, shapeBounds.height * devicePixelRatio);
 
       canvas
         ..scale(1 / devicePixelRatio)
+        ..drawImage(
+          childImage!,
+          bounds.topLeft * devicePixelRatio,
+          ui.Paint(),
+        )
         ..drawRect(
-          offset & bounds.size * devicePixelRatio,
+          shapeBounds.topLeft * devicePixelRatio &
+              (shapeBounds.size * devicePixelRatio),
           ui.Paint()..shader = shader,
         );
     }
