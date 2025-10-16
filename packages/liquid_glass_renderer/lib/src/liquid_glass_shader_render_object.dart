@@ -236,6 +236,10 @@ sealed class PaintableLiquidGlassElement {
     required double devicePixelRatio,
   });
 
+  void setGeometryUniforms(FragmentShader shader, double devicePixelRatio);
+
+  void setFinalRenderUniforms(FragmentShader shader, double devicePixelRatio);
+
   @protected
   void setSettingsOnShader(FragmentShader shader) {
     shader.setFloatUniforms(initialIndex: 2, (value) {
@@ -286,6 +290,79 @@ class PaintableGlassShape extends PaintableLiquidGlassElement {
   Rect get paintBounds => shape.rect;
 
   @override
+  void setGeometryUniforms(FragmentShader shader, double devicePixelRatio) {
+    shader.setFloatUniforms(initialIndex: 2, (value) {
+      value.setFloats([
+        settings.refractiveIndex,
+        0.0,
+        settings.thickness,
+        0.0,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 6, (value) {
+      value
+        ..setFloat(shape.rect.center.dx)
+        ..setFloat(shape.rect.center.dy)
+        ..setFloat(shape.rect.size.width)
+        ..setFloat(shape.rect.size.height)
+        ..setFloat(shape.cornerRadius * devicePixelRatio);
+    });
+  }
+
+  @override
+  void setFinalRenderUniforms(FragmentShader shader, double devicePixelRatio) {
+    shader.setFloatUniforms(initialIndex: 2, (value) {
+      value.setColor(settings.glassColor);
+    });
+
+    shader.setFloatUniforms(initialIndex: 6, (value) {
+      value.setFloats([
+        settings.lightAngle,
+        settings.lightIntensity,
+        settings.ambientStrength,
+        settings.saturation,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 10, (value) {
+      value.setOffset(
+        Offset(
+          cos(settings.lightAngle),
+          sin(settings.lightAngle),
+        ),
+      );
+    });
+
+    shader.setFloatUniforms(initialIndex: 12, (value) {
+      value.setFloats([
+        settings.thickness * 10.0,
+        0.0,
+        0.0,
+        0.0,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 16, (value) {
+      value.setOffset(shape.rect.topLeft);
+    });
+
+    shader.setFloatUniforms(initialIndex: 18, (value) {
+      value
+        ..setFloat(shape.rect.size.width)
+        ..setFloat(shape.rect.size.height);
+    });
+
+    shader.setFloatUniforms(initialIndex: 20, (value) {
+      value.setFloat(settings.chromaticAberration);
+    });
+
+    shader.setFloatUniforms(initialIndex: 21, (value) {
+      value.setFloat(settings.thickness);
+    });
+  }
+
+  @override
   FragmentShader prepareShader({
     required FragmentShader blendShader,
     required FragmentShader squircleShader,
@@ -328,6 +405,85 @@ class PaintableGlassGroup extends PaintableLiquidGlassElement {
   final Rect paintBounds;
 
   final double blendValue;
+
+  @override
+  void setGeometryUniforms(FragmentShader shader, double devicePixelRatio) {
+    shader.setFloatUniforms(initialIndex: 2, (value) {
+      value.setFloats([
+        settings.refractiveIndex,
+        0.0,
+        settings.thickness,
+        blendValue,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 6, (value) {
+      value.setFloat(shapes.length.toDouble());
+      for (var i = 0; i < shapes.length; i++) {
+        final shape = shapes[i].shape;
+
+        value
+          ..setFloat(shape.type.index.toDouble())
+          ..setFloat(shape.rect.center.dx)
+          ..setFloat(shape.rect.center.dy)
+          ..setFloat(shape.rect.size.width)
+          ..setFloat(shape.rect.size.height)
+          ..setFloat(shape.cornerRadius * devicePixelRatio);
+      }
+    });
+  }
+
+  @override
+  void setFinalRenderUniforms(FragmentShader shader, double devicePixelRatio) {
+    shader.setFloatUniforms(initialIndex: 2, (value) {
+      value.setColor(settings.glassColor);
+    });
+
+    shader.setFloatUniforms(initialIndex: 6, (value) {
+      value.setFloats([
+        settings.lightAngle,
+        settings.lightIntensity,
+        settings.ambientStrength,
+        settings.saturation,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 10, (value) {
+      value.setOffset(
+        Offset(
+          cos(settings.lightAngle),
+          sin(settings.lightAngle),
+        ),
+      );
+    });
+
+    shader.setFloatUniforms(initialIndex: 12, (value) {
+      value.setFloats([
+        settings.thickness * 10.0,
+        0.0,
+        0.0,
+        0.0,
+      ]);
+    });
+
+    shader.setFloatUniforms(initialIndex: 16, (value) {
+      value.setOffset(paintBounds.topLeft);
+    });
+
+    shader.setFloatUniforms(initialIndex: 18, (value) {
+      value
+        ..setFloat(paintBounds.size.width)
+        ..setFloat(paintBounds.size.height);
+    });
+
+    shader.setFloatUniforms(initialIndex: 20, (value) {
+      value.setFloat(settings.chromaticAberration);
+    });
+
+    shader.setFloatUniforms(initialIndex: 21, (value) {
+      value.setFloat(settings.thickness);
+    });
+  }
 
   @override
   FragmentShader prepareShader({

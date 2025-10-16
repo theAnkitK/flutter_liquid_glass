@@ -56,9 +56,11 @@ class _LiquidGlassCanvasState extends State<LiquidGlassCanvas> {
           return _RawLiquidGlassFilter(
             blendShader: shaders[0],
             squircleShader: shaders[1],
-            // TODO let's support all of it
             ovalShader: shaders[1],
             rRectShader: shaders[1],
+            geometryBlendedShader: shaders[2],
+            geometrySquircleShader: shaders[3],
+            finalRenderShader: shaders[4],
             glassLink: _glassLink,
             child: child,
           );
@@ -66,6 +68,9 @@ class _LiquidGlassCanvasState extends State<LiquidGlassCanvas> {
         assetKeys: [
           liquidGlassBlendedShader,
           liquidGlassSquircleShader,
+          liquidGlassGeometryBlendedShader,
+          liquidGlassGeometrySquircleShader,
+          liquidGlassFinalRenderShader,
         ],
         child: widget.child,
       ),
@@ -79,6 +84,9 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
     required this.squircleShader,
     required this.ovalShader,
     required this.rRectShader,
+    required this.geometryBlendedShader,
+    required this.geometrySquircleShader,
+    required this.finalRenderShader,
     required this.glassLink,
     required super.child,
   });
@@ -87,6 +95,9 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
   final FragmentShader squircleShader;
   final FragmentShader ovalShader;
   final FragmentShader rRectShader;
+  final FragmentShader geometryBlendedShader;
+  final FragmentShader geometrySquircleShader;
+  final FragmentShader finalRenderShader;
 
   final GlassLink glassLink;
 
@@ -97,6 +108,9 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
       squircleShader: squircleShader,
       ovalShader: ovalShader,
       rRectShader: rRectShader,
+      geometryBlendedShader: geometryBlendedShader,
+      geometrySquircleShader: geometrySquircleShader,
+      finalRenderShader: finalRenderShader,
       glassLink: glassLink,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
     );
@@ -119,9 +133,18 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
     required super.squircleShader,
     required super.ovalShader,
     required super.rRectShader,
+    required FragmentShader geometryBlendedShader,
+    required FragmentShader geometrySquircleShader,
+    required FragmentShader finalRenderShader,
     required super.devicePixelRatio,
     required super.glassLink,
-  });
+  })  : _geometryBlendedShader = geometryBlendedShader,
+        _geometrySquircleShader = geometrySquircleShader,
+        _finalRenderShader = finalRenderShader;
+
+  final FragmentShader _geometryBlendedShader;
+  final FragmentShader _geometrySquircleShader;
+  final FragmentShader _finalRenderShader;
 
   @override
   bool get alwaysNeedsCompositing => true;
@@ -140,6 +163,9 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
       squircleShader: squircleShader,
       ovalShader: ovalShader,
       rRectShader: rRectShader,
+      geometryBlendedShader: _geometryBlendedShader,
+      geometrySquircleShader: _geometrySquircleShader,
+      finalRenderShader: _finalRenderShader,
     ))
       ..elements = shapes
       ..devicePixelRatio = devicePixelRatio
@@ -155,7 +181,6 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
     context.pushLayer(
       layer,
       (context, offset) {
-        // The child is the whole app in this case
         context.paintChild(child!, offset);
       },
       offset,
@@ -178,12 +203,18 @@ class _ShaderLayer extends OffsetLayer {
     required this.squircleShader,
     required this.ovalShader,
     required this.rRectShader,
+    required this.geometryBlendedShader,
+    required this.geometrySquircleShader,
+    required this.finalRenderShader,
   });
 
   final FragmentShader blendShader;
   final FragmentShader squircleShader;
   final FragmentShader ovalShader;
   final FragmentShader rRectShader;
+  final FragmentShader geometryBlendedShader;
+  final FragmentShader geometrySquircleShader;
+  final FragmentShader finalRenderShader;
 
   List<PaintableLiquidGlassElement> _elements = [];
   List<PaintableLiquidGlassElement> get elements => _elements;
@@ -210,6 +241,7 @@ class _ShaderLayer extends OffsetLayer {
   }
 
   final Map<int, ui.Image> _blurredImages = {};
+  final Map<PaintableLiquidGlassElement, ui.Image> _geometryTextures = {};
 
   @override
   void addToScene(ui.SceneBuilder builder) {
@@ -219,29 +251,34 @@ class _ShaderLayer extends OffsetLayer {
     }
 
     _captureImages();
+    _generateGeometryTextures();
 
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder)
       ..scale(1 / devicePixelRatio)
-      // Draw the actual child first
       ..drawImage(_blurredImages[0]!, Offset.zero, ui.Paint());
 
     for (final element in elements) {
-      final shader = element.prepareShader(
-        blendShader: blendShader,
-        squircleShader: squircleShader,
-        ovalShader: ovalShader,
-        rRectShader: rRectShader,
-        devicePixelRatio: devicePixelRatio,
-      )
-        ..setImageSampler(0, _blurredImages[element.settings.blur.round()]!)
-        ..setFloat(0, bounds.width * devicePixelRatio)
-        ..setFloat(1, bounds.height * devicePixelRatio);
+      final geometryTexture = _geometryTextures[element];
+      if (geometryTexture != null) {
+        final shader = finalRenderShader
+          ..setFloat(0, bounds.width)
+          ..setFloat(1, bounds.height)
+          ..setImageSampler(0, _blurredImages[element.settings.blur.round()]!)
+          ..setImageSampler(1, geometryTexture);
 
-      canvas.drawRect(
-        element.paintBounds,
-        ui.Paint()..shader = shader,
-      );
+        element.setFinalRenderUniforms(shader, devicePixelRatio);
+
+        canvas.drawRect(
+          Rect.fromLTWH(
+            element.paintBounds.left,
+            element.paintBounds.top,
+            element.paintBounds.width,
+            element.paintBounds.height,
+          ),
+          ui.Paint()..shader = shader,
+        );
+      }
     }
 
     final picture = recorder.endRecording();
@@ -310,8 +347,47 @@ class _ShaderLayer extends OffsetLayer {
     return picture.toImageSync(image.width, image.height);
   }
 
+  void _generateGeometryTextures() {
+    _clearGeometryTextures();
+
+    for (final element in elements) {
+      final geometryShader = switch (element) {
+        PaintableGlassShape() => geometrySquircleShader,
+        PaintableGlassGroup() => geometryBlendedShader,
+      };
+
+      geometryShader
+        ..setFloat(0, bounds.width)
+        ..setFloat(1, bounds.height);
+
+      element.setGeometryUniforms(geometryShader, devicePixelRatio);
+
+      final recorder = ui.PictureRecorder();
+      final canvas = ui.Canvas(recorder);
+
+      canvas.drawRect(
+        Offset.zero & (element.paintBounds.size),
+        ui.Paint()..shader = geometryShader,
+      );
+
+      final picture = recorder.endRecording();
+      final image = picture.toImageSync(
+        (element.paintBounds.width).ceil(),
+        (element.paintBounds.height).ceil(),
+      );
+
+      _geometryTextures[element] = image;
+    }
+  }
+
   void _clearImages() {
     _blurredImages
+      ..forEach((key, value) => value.dispose())
+      ..clear();
+  }
+
+  void _clearGeometryTextures() {
+    _geometryTextures
       ..forEach((key, value) => value.dispose())
       ..clear();
   }
@@ -319,6 +395,7 @@ class _ShaderLayer extends OffsetLayer {
   @override
   void dispose() {
     _clearImages();
+    _clearGeometryTextures();
     super.dispose();
   }
 }

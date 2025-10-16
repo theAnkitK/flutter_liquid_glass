@@ -70,45 +70,45 @@ class BasicApp extends HookWidget {
                       spacing: 16,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // LiquidGlassBlendGroup(
-                        //   settings: settings,
-                        //   blendPx: 40,
-                        //   child: Row(
-                        //     mainAxisSize: MainAxisSize.min,
-                        //     spacing: 16,
-                        //     children: [
-                        //       LiquidStretch(
-                        //         child: LiquidGlass.inBlendGroup(
-                        //           shape: LiquidRoundedSuperellipse(
-                        //             borderRadius: Radius.circular(20),
-                        //           ),
-                        //           child: GlassGlow(
-                        //             child: SizedBox.square(
-                        //               dimension: 100,
-                        //               child: Center(child: Text('REAL')),
-                        //             ),
-                        //           ),
-                        //         ),
-                        //       ),
-                        //       LiquidStretch(
-                        //         child: LiquidGlass.inBlendGroup(
-                        //           shape: LiquidRoundedSuperellipse(
-                        //             borderRadius: Radius.circular(20),
-                        //           ),
-                        //           child: GlassGlow(
-                        //             child: GestureDetector(
-                        //               behavior: HitTestBehavior.opaque,
-                        //               child: SizedBox.square(
-                        //                 dimension: 100,
-                        //                 child: Center(child: Text('FAKE')),
-                        //               ),
-                        //             ),
-                        //           ),
-                        //         ),
-                        //       ),
-                        //     ],
-                        //   ),
-                        // ),
+                        LiquidGlassBlendGroup(
+                          settings: settings,
+                          blendPx: 40,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 16,
+                            children: [
+                              LiquidStretch(
+                                child: LiquidGlass.inBlendGroup(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
+                                  ),
+                                  child: GlassGlow(
+                                    child: SizedBox.square(
+                                      dimension: 100,
+                                      child: Center(child: Text('REAL')),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              LiquidStretch(
+                                child: LiquidGlass.inBlendGroup(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
+                                  ),
+                                  child: GlassGlow(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      child: SizedBox.square(
+                                        dimension: 100,
+                                        child: Center(child: Text('FAKE')),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         LiquidStretch(
                           child: LiquidGlass(
                             settings: settings,

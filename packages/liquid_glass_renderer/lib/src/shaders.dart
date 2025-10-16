@@ -21,3 +21,15 @@ final String liquidGlassBlendedShader =
 @internal
 final String liquidGlassSquircleShader =
     '${_shadersRoot}lib/assets/shaders/liquid_glass_squircle.frag';
+
+@internal
+final String liquidGlassGeometryBlendedShader =
+    '${_shadersRoot}lib/assets/shaders/liquid_glass_geometry_blended.frag';
+
+@internal
+final String liquidGlassGeometrySquircleShader =
+    '${_shadersRoot}lib/assets/shaders/liquid_glass_geometry_squircle.frag';
+
+@internal
+final String liquidGlassFinalRenderShader =
+    '${_shadersRoot}lib/assets/shaders/liquid_glass_final_render.frag';

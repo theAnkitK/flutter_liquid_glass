@@ -44,3 +44,6 @@ flutter:
   shaders:
     - lib/assets/shaders/liquid_glass_blended.frag
     - lib/assets/shaders/liquid_glass_squircle.frag
+    - lib/assets/shaders/liquid_glass_geometry_blended.frag
+    - lib/assets/shaders/liquid_glass_geometry_squircle.frag
+    - lib/assets/shaders/liquid_glass_final_render.frag
