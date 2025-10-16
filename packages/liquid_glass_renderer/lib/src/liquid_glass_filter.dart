@@ -49,7 +49,7 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
             child: child,
           );
         },
-        assetKey: liquidGlassShader,
+        assetKey: liquidGlassFilterShader,
         child: widget.child,
       ),
     );
@@ -223,7 +223,8 @@ class _ShaderLayer extends OffsetLayer {
     {
       if (childImage != null) {
         shader
-          ..setImageSampler(0, blurredImage!)
+          ..setImageSampler(0, childImage!)
+          ..setImageSampler(1, blurredImage!)
           ..setFloat(0, bounds.width * devicePixelRatio)
           ..setFloat(1, bounds.height * devicePixelRatio);
         canvas
@@ -234,13 +235,13 @@ class _ShaderLayer extends OffsetLayer {
             ui.Paint(),
           )
 
-          // TODO maybe make faster
-          ..clipPath(
-            clipPath.transform(
-              Matrix4.diagonal3Values(devicePixelRatio, devicePixelRatio, 1)
-                  .storage,
-            ),
-          )
+          // // TODO maybe make faster
+          // ..clipPath(
+          //   clipPath.transform(
+          //     Matrix4.diagonal3Values(devicePixelRatio, devicePixelRatio, 1)
+          //         .storage,
+          //   ),
+          // )
 
           // Finally, draw liquid glass
           ..drawRect(
