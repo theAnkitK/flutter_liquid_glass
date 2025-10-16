@@ -212,42 +212,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     glassLink.removeListener(onLinkNotification);
     super.dispose();
   }
-
-  /// Extracts the geometric mean of X and Y scale factors from a transform.
-  ///
-  /// This is used to scale corner radii when shapes are transformed by Flutter
-  /// widgets like [FittedBox] or [Transform]. The position and size are already
-  /// correctly transformed via [MatrixUtils.transformRect], but corner radii
-  /// need explicit scaling.
-  ///
-  /// **Design Tradeoff**: Instead of passing full Matrix3 transforms to the
-  /// shader, we extract scale on the CPU once per frame
-  /// per shape and only send 6 floats per shape to the shader.
-  ///
-  /// **Performance**: Optimized with fast path for axis-aligned transforms
-  /// (FittedBox, Transform.scale) using direct matrix access. Handles rotated
-  /// and skewed transforms with minimal overhead.
-  ///
-  /// **Limitation**: For non-uniform scaling with rotation, the geometric mean
-  /// may not perfectly match visual appearance in all cases, but provides good
-  /// results for common UI transforms while keeping shader cost at zero.
-  double _getScaleFromTransform(Matrix4 transform) {
-    final m = transform.storage;
-    final scaleX = m[0];
-    final scaleY = m[5];
-
-    if (m[1] == 0 && m[4] == 0) {
-      return sqrt(scaleX.abs() * scaleY.abs());
-    }
-
-    final a = m[0];
-    final b = m[1];
-    final c = m[4];
-    final d = m[5];
-    final scaleXSq = a * a + b * b;
-    final scaleYSq = c * c + d * d;
-    return sqrt(sqrt(scaleXSq * scaleYSq));
-  }
 }
 
 @internal

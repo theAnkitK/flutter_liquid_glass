@@ -9,7 +9,6 @@ import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_link_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
-import 'package:liquid_glass_renderer/src/raw_shapes.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 /// {@template liquid_glass_canvas}
@@ -210,54 +209,63 @@ class _ShaderLayer extends OffsetLayer {
     markNeedsAddToScene();
   }
 
-  ui.Image? childImage;
+  ui.Image? _childImage;
+  final Map<int, ui.Image> _blurredImages = {};
 
   @override
   void addToScene(ui.SceneBuilder builder) {
-    _captureChildLayer();
+    if (elements.isEmpty) {
+      addChildrenToScene(builder);
+      return;
+    }
+
+    _captureImages();
 
     final recorder = ui.PictureRecorder();
     engineLayer = builder.pushOffset(offset.dx, offset.dy);
     {
-      addChildrenToScene(builder);
-      if (childImage != null) {
-        final canvas = ui.Canvas(recorder)..scale(1 / devicePixelRatio);
+      final canvas = ui.Canvas(recorder)
+        ..scale(1 / devicePixelRatio)
+        // Draw the actual child first
+        ..drawImage(_childImage!, offset, ui.Paint());
 
-        for (final element in elements) {
-          final shader = element.prepareShader(
-            blendShader: blendShader,
-            squircleShader: squircleShader,
-            ovalShader: ovalShader,
-            rRectShader: rRectShader,
-            devicePixelRatio: devicePixelRatio,
-          )
-            ..setImageSampler(0, childImage!)
-            ..setFloat(0, bounds.width * devicePixelRatio)
-            ..setFloat(1, bounds.height * devicePixelRatio);
+      for (final element in elements) {
+        final shader = element.prepareShader(
+          blendShader: blendShader,
+          squircleShader: squircleShader,
+          ovalShader: ovalShader,
+          rRectShader: rRectShader,
+          devicePixelRatio: devicePixelRatio,
+        )
+          ..setImageSampler(0, _blurredImages[element.settings.blur.round()]!)
+          ..setFloat(0, bounds.width * devicePixelRatio)
+          ..setFloat(1, bounds.height * devicePixelRatio);
 
-          canvas
-            ..drawRect(element.paintBounds, ui.Paint()..color = Colors.black12)
-            ..drawRect(
-              element.paintBounds,
-              ui.Paint()..shader = shader,
-            );
-        }
-
-        final picture = recorder.endRecording();
-        builder.addPicture(offset, picture);
+        canvas.drawRect(
+          element.paintBounds,
+          ui.Paint()..shader = shader,
+        );
       }
+
+      final picture = recorder.endRecording();
+      builder.addPicture(offset, picture);
     }
     builder.pop();
   }
 
-  void _captureChildLayer() {
-    childImage?.dispose();
-    childImage = _buildBlurredImage();
+  void _captureImages() {
+    _clearImages();
+
+    final image = _childImage = _captureImage();
+
+    final uniqueBlurs = elements.map((e) => e.settings.blur.round()).toSet();
+    for (final blur in uniqueBlurs) {
+      _blurredImages[blur] = _buildBlurredImage(image, blur.toDouble());
+    }
   }
 
-  ui.Image _buildBlurredImage() {
+  ui.Image _captureImage() {
     final builder = ui.SceneBuilder();
-    final blur = elements.first.settings.blur;
 
     final transform = Matrix4.diagonal3Values(
       devicePixelRatio,
@@ -265,22 +273,8 @@ class _ShaderLayer extends OffsetLayer {
       1,
     );
     builder.pushTransform(transform.storage);
-    if (blur > 0) {
-      // We only need to capture the area that will be blurred
-      builder.pushImageFilter(
-        ui.ImageFilter.blur(
-          sigmaX: blur,
-          sigmaY: blur,
-          tileMode: ui.TileMode.mirror,
-        ),
-      );
-    }
 
     addChildrenToScene(builder);
-
-    if (blur > 0) {
-      builder.pop();
-    }
 
     builder.pop();
 
@@ -290,9 +284,37 @@ class _ShaderLayer extends OffsetLayer {
         );
   }
 
+  ui.Image _buildBlurredImage(ui.Image image, double blur) {
+    if (blur <= 0) {
+      return image;
+    }
+
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+
+    final paint = ui.Paint()
+      ..imageFilter = ui.ImageFilter.blur(
+        sigmaX: blur,
+        sigmaY: blur,
+        tileMode: ui.TileMode.mirror,
+      );
+
+    canvas.drawImage(image, Offset.zero, paint);
+
+    final picture = recorder.endRecording();
+    return picture.toImageSync(image.width, image.height);
+  }
+
+  void _clearImages() {
+    _childImage?.dispose();
+    _blurredImages
+      ..forEach((key, value) => value.dispose())
+      ..clear();
+  }
+
   @override
   void dispose() {
-    childImage?.dispose();
+    _clearImages();
     super.dispose();
   }
 }
