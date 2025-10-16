@@ -1,3 +1,7 @@
+// Shape array uniforms - 6 floats per shape (type, centerX, centerY, sizeW, sizeH, cornerRadius)
+// Reduced from 64 to 16 shapes to fit Impeller's uniform buffer limit (16 * 6 = 96 floats vs 384)
+#define MAX_SHAPES 16
+
 float sdfRRect( in vec2 p, in vec2 b, in float r ) {
     float shortest = min(b.x, b.y);
     r = min(r, shortest);
@@ -56,44 +60,43 @@ float getShapeSDF(float type, vec2 p, vec2 center, vec2 size, float r) {
     return 1e9; // none
 }
 
-float getShapeSDFFromArray(int index, vec2 p) {
+float getShapeSDFFromArray(int index, vec2 p, float shapeData[MAX_SHAPES * 6]) {
     int baseIndex = index * 6;
-    float type = uShapeData[baseIndex];
-    vec2 center = vec2(uShapeData[baseIndex + 1], uShapeData[baseIndex + 2]);
-    vec2 size = vec2(uShapeData[baseIndex + 3], uShapeData[baseIndex + 4]);
-    float cornerRadius = uShapeData[baseIndex + 5];
+    float type = shapeData[baseIndex];
+    vec2 center = vec2(shapeData[baseIndex + 1], shapeData[baseIndex + 2]);
+    vec2 size = vec2(shapeData[baseIndex + 3], shapeData[baseIndex + 4]);
+    float cornerRadius = shapeData[baseIndex + 5];
     
     return getShapeSDF(type, p, center, size, cornerRadius);
 }
 
-float sceneSDF(vec2 p) {
-    int numShapes = int(uNumShapes);
+float sceneSDF(vec2 p, int numShapes, float shapeData[MAX_SHAPES * 6], float blend) {
     if (numShapes == 0) {
         return 1e9;
     }
     
-    float result = getShapeSDFFromArray(0, p);
+    float result = getShapeSDFFromArray(0, p, shapeData);
     
     // Optimized: unroll for common cases (1-4 shapes), use loop for 5+ shapes
     if (numShapes <= 4) {
         // Fully unrolled for 1-4 shapes (covers 90%+ of use cases)
         if (numShapes >= 2) {
-            float shapeSDF = getShapeSDFFromArray(1, p);
-            result = smoothUnion(result, shapeSDF, uBlend);
+            float shapeSDF = getShapeSDFFromArray(1, p, shapeData);
+            result = smoothUnion(result, shapeSDF, blend);
         }
         if (numShapes >= 3) {
-            float shapeSDF = getShapeSDFFromArray(2, p);
-            result = smoothUnion(result, shapeSDF, uBlend);
+            float shapeSDF = getShapeSDFFromArray(2, p, shapeData);
+            result = smoothUnion(result, shapeSDF, blend);
         }
         if (numShapes >= 4) {
-            float shapeSDF = getShapeSDFFromArray(3, p);
-            result = smoothUnion(result, shapeSDF, uBlend);
+            float shapeSDF = getShapeSDFFromArray(3, p, shapeData);
+            result = smoothUnion(result, shapeSDF, blend);
         }
     } else {
         // Dynamic loop for 5+ shapes (uncommon cases)
         for (int i = 1; i < min(numShapes, MAX_SHAPES); i++) {
-            float shapeSDF = getShapeSDFFromArray(i, p);
-            result = smoothUnion(result, shapeSDF, uBlend);
+            float shapeSDF = getShapeSDFFromArray(i, p, shapeData);
+            result = smoothUnion(result, shapeSDF, blend);
         }
     }
     

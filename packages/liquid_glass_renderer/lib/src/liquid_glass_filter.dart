@@ -72,7 +72,7 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return RenderLiquidGlassFilter(
+    return _RenderLiquidGlassFilter(
       settings: settings,
       glassLink: glassLink,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
@@ -83,7 +83,7 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
   @override
   void updateRenderObject(
     BuildContext context,
-    RenderLiquidGlassFilter renderObject,
+    _RenderLiquidGlassFilter renderObject,
   ) {
     renderObject
       ..shader = shader
@@ -93,8 +93,8 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
   }
 }
 
-class RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
-  RenderLiquidGlassFilter({
+class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
+  _RenderLiquidGlassFilter({
     required super.devicePixelRatio,
     required super.settings,
     required super.glassLink,

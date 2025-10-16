@@ -34,9 +34,6 @@ float uRefractiveIndex = uOpticalProps.x;
 float uBlend = uOpticalProps.w;
 float uSaturation = uLightConfig.w;
 
-// Shape array uniforms - 6 floats per shape (type, centerX, centerY, sizeW, sizeH, cornerRadius)
-// Reduced from 64 to 16 shapes to fit Impeller's uniform buffer limit (16 * 6 = 96 floats vs 384)
-#define MAX_SHAPES 16
 layout(location = 5) uniform float uNumShapes;             // numShapes  
 layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
 
@@ -55,7 +52,7 @@ void main() {
     #endif
     
     // Generate shape and calculate normal using shader-specific method
-    float sd = sceneSDF(fragCoord);
+    float sd = sceneSDF(fragCoord, int(uNumShapes), uShapeData, uBlend);
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
 
     // Early discard for pixels outside glass shapes to reduce overdraw
