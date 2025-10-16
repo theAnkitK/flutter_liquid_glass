@@ -337,7 +337,7 @@ class PaintableGlassShape extends PaintableLiquidGlassElement {
 
     setSettingsOnShader(shader);
 
-    blendShader.setFloatUniforms(initialIndex: 15, (value) {
+    shader.setFloatUniforms(initialIndex: 16, (value) {
       value
         ..setFloat(shape.rect.center.dx)
         ..setFloat(shape.rect.center.dy)

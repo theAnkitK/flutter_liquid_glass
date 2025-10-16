@@ -8,7 +8,7 @@ import 'package:liquid_glass_renderer_example/shared.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
-  runApp(CupertinoApp(home: BasicApp()));
+  runApp(LiquidGlassCanvas(child: CupertinoApp(home: BasicApp())));
 }
 
 final settingsNotifier = ValueNotifier(
@@ -72,6 +72,7 @@ class BasicApp extends HookWidget {
                       children: [
                         LiquidGlassBlendGroup(
                           settings: settings,
+                          blendPx: 40,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             spacing: 16,

@@ -54,7 +54,7 @@ void main() {
     vec2 size = vec2(uShapeData[2], uShapeData[3]);
     float cornerRadius = uShapeData[4];
     
-    float sd = sdfSquircle(fragCoord - center, size / 2.0, cornerRadius);
+    float sd = getShapeSDF(1.0, fragCoord, center, size, cornerRadius);
 
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
 

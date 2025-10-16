@@ -275,7 +275,7 @@ class LiquidGlassBlendGroup extends InheritedWidget {
   /// Creates a new [LiquidGlassBlendGroup].
   const LiquidGlassBlendGroup({
     required super.child,
-    required this.settings,
+    this.settings = const LiquidGlassSettings(),
     this.blendPx = 20,
     super.key,
   });
