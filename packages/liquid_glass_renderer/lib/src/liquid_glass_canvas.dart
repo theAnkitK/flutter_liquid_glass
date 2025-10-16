@@ -222,35 +222,31 @@ class _ShaderLayer extends OffsetLayer {
     _captureImages();
 
     final recorder = ui.PictureRecorder();
-    engineLayer = builder.pushOffset(offset.dx, offset.dy);
-    {
-      final canvas = ui.Canvas(recorder)
-        ..scale(1 / devicePixelRatio)
-        // Draw the actual child first
-        ..drawImage(_childImage!, offset, ui.Paint());
+    final canvas = ui.Canvas(recorder)
+      ..scale(1 / devicePixelRatio)
+      // Draw the actual child first
+      ..drawImage(_childImage!, Offset.zero, ui.Paint());
 
-      for (final element in elements) {
-        final shader = element.prepareShader(
-          blendShader: blendShader,
-          squircleShader: squircleShader,
-          ovalShader: ovalShader,
-          rRectShader: rRectShader,
-          devicePixelRatio: devicePixelRatio,
-        )
-          ..setImageSampler(0, _blurredImages[element.settings.blur.round()]!)
-          ..setFloat(0, bounds.width * devicePixelRatio)
-          ..setFloat(1, bounds.height * devicePixelRatio);
+    for (final element in elements) {
+      final shader = element.prepareShader(
+        blendShader: blendShader,
+        squircleShader: squircleShader,
+        ovalShader: ovalShader,
+        rRectShader: rRectShader,
+        devicePixelRatio: devicePixelRatio,
+      )
+        ..setImageSampler(0, _blurredImages[element.settings.blur.round()]!)
+        ..setFloat(0, bounds.width * devicePixelRatio)
+        ..setFloat(1, bounds.height * devicePixelRatio);
 
-        canvas.drawRect(
-          element.paintBounds,
-          ui.Paint()..shader = shader,
-        );
-      }
-
-      final picture = recorder.endRecording();
-      builder.addPicture(offset, picture);
+      canvas.drawRect(
+        element.paintBounds,
+        ui.Paint()..shader = shader,
+      );
     }
-    builder.pop();
+
+    final picture = recorder.endRecording();
+    builder.addPicture(offset, picture);
   }
 
   void _captureImages() {
@@ -266,16 +262,23 @@ class _ShaderLayer extends OffsetLayer {
 
   ui.Image _captureImage() {
     final builder = ui.SceneBuilder();
-
-    final transform = Matrix4.diagonal3Values(
-      devicePixelRatio,
-      devicePixelRatio,
-      1,
+    engineLayer = builder.pushOffset(
+      -offset.dx * devicePixelRatio,
+      -offset.dy * devicePixelRatio,
+      oldLayer: engineLayer as ui.OffsetEngineLayer?,
     );
-    builder.pushTransform(transform.storage);
+    {
+      final transform = Matrix4.diagonal3Values(
+        devicePixelRatio,
+        devicePixelRatio,
+        1,
+      );
+      builder.pushTransform(transform.storage);
 
-    addChildrenToScene(builder);
+      addChildrenToScene(builder);
 
+      builder.pop();
+    }
     builder.pop();
 
     return builder.build().toImageSync(
