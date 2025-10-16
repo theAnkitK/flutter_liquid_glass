@@ -65,7 +65,7 @@ class _LiquidGlassCanvasState extends State<LiquidGlassCanvas> {
           );
         },
         assetKeys: [
-          liquidGlassFilterShader,
+          liquidGlassBlendedShader,
           liquidGlassSquircleShader,
         ],
         child: widget.child,
@@ -134,21 +134,18 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlass, RawShape)> shapes,
+    List<PaintableLiquidGlassElement> shapes,
   ) {
-    var shapeBounds = shapes.first.$2.topLeft & shapes.first.$2.size;
-
-    for (final (_, rawShape) in shapes) {
-      shapeBounds =
-          shapeBounds.expandToInclude(rawShape.topLeft & rawShape.size);
-    }
-
-    final layer = (this.layer ??= _ShaderLayer())
-      ..shapes = shapes
+    final layer = (this.layer ??= _ShaderLayer(
+      blendShader: blendShader,
+      squircleShader: squircleShader,
+      ovalShader: ovalShader,
+      rRectShader: rRectShader,
+    ))
+      ..elements = shapes
       ..devicePixelRatio = devicePixelRatio
       ..bounds = offset & size
-      ..offset = offset
-      ..shapeBounds = shapeBounds;
+      ..offset = offset;
 
     paintShapeContents(
       context,
@@ -177,21 +174,23 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
 /// Custom composited layer that handles the liquid glass shader effect
 /// with a captured child image
 class _ShaderLayer extends OffsetLayer {
-  _ShaderLayer();
+  _ShaderLayer({
+    required this.blendShader,
+    required this.squircleShader,
+    required this.ovalShader,
+    required this.rRectShader,
+  });
 
-  double _blur = 0;
-  double get blur => _blur;
-  set blur(double value) {
-    if (_blur == value) return;
-    _blur = value;
-    markNeedsAddToScene();
-  }
+  final FragmentShader blendShader;
+  final FragmentShader squircleShader;
+  final FragmentShader ovalShader;
+  final FragmentShader rRectShader;
 
-  List<(RenderLiquidGlass, RawShape)> _shapes = [];
-  List<(RenderLiquidGlass, RawShape)> get shapes => _shapes;
-  set shapes(List<(RenderLiquidGlass, RawShape)> value) {
-    if (listEquals(_shapes, value)) return;
-    _shapes = value;
+  List<PaintableLiquidGlassElement> _elements = [];
+  List<PaintableLiquidGlassElement> get elements => _elements;
+  set elements(List<PaintableLiquidGlassElement> value) {
+    if (listEquals(_elements, value)) return;
+    _elements = value;
     markNeedsAddToScene();
   }
 
@@ -200,14 +199,6 @@ class _ShaderLayer extends OffsetLayer {
   set bounds(Rect value) {
     if (_bounds == value) return;
     _bounds = value;
-    markNeedsAddToScene();
-  }
-
-  Rect? _shapeBounds;
-  Rect get shapeBounds => _shapeBounds!;
-  set shapeBounds(Rect value) {
-    if (_shapeBounds == value) return;
-    _shapeBounds = value;
     markNeedsAddToScene();
   }
 
@@ -226,33 +217,35 @@ class _ShaderLayer extends OffsetLayer {
     _captureChildLayer();
 
     final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
     engineLayer = builder.pushOffset(offset.dx, offset.dy);
     {
       addChildrenToScene(builder);
       if (childImage != null) {
-        shader
-          ..setImageSampler(0, childImage!)
-          ..setFloat(0, bounds.width * devicePixelRatio)
-          ..setFloat(1, bounds.height * devicePixelRatio);
-        canvas
-          ..scale(1 / devicePixelRatio)
-          ..drawImage(
-            childImage!,
-            bounds.topLeft * devicePixelRatio,
-            ui.Paint(),
+        final canvas = ui.Canvas(recorder)..scale(1 / devicePixelRatio);
+
+        for (final element in elements) {
+          final shader = element.prepareShader(
+            blendShader: blendShader,
+            squircleShader: squircleShader,
+            ovalShader: ovalShader,
+            rRectShader: rRectShader,
+            devicePixelRatio: devicePixelRatio,
           )
+            ..setImageSampler(0, childImage!)
+            ..setFloat(0, bounds.width * devicePixelRatio)
+            ..setFloat(1, bounds.height * devicePixelRatio);
 
-          // Finally, draw liquid glass
-          ..drawRect(
-            (shapeBounds.topLeft * devicePixelRatio) &
-                (shapeBounds.size * devicePixelRatio),
-            ui.Paint()..shader = shader,
-          );
+          canvas
+            ..drawRect(element.paintBounds, ui.Paint()..color = Colors.black12)
+            ..drawRect(
+              element.paintBounds,
+              ui.Paint()..shader = shader,
+            );
+        }
+
+        final picture = recorder.endRecording();
+        builder.addPicture(offset, picture);
       }
-
-      final picture = recorder.endRecording();
-      builder.addPicture(offset, picture);
     }
     builder.pop();
   }
@@ -264,6 +257,7 @@ class _ShaderLayer extends OffsetLayer {
 
   ui.Image _buildBlurredImage() {
     final builder = ui.SceneBuilder();
+    final blur = elements.first.settings.blur;
 
     final transform = Matrix4.diagonal3Values(
       devicePixelRatio,

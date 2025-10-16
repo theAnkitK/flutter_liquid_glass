@@ -208,23 +208,7 @@ class SettingsSheet extends HookWidget {
                         min: 0,
                         max: 40,
                       ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Liquid Factor™:'),
-                          Text(settings.blend.toStringAsFixed(2)),
-                        ],
-                      ),
-                      CupertinoSlider(
-                        value: settings.blend,
-                        onChanged: (value) {
-                          settingsNotifier.value = settings.copyWith(
-                            blend: value,
-                          );
-                        },
-                        min: 0,
-                        max: 200,
-                      ),
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [

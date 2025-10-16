@@ -44,7 +44,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
 
   @protected
   void onLinkNotification() {
-    setShapeUniforms();
     markNeedsPaint();
   }
 
@@ -56,61 +55,8 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  List<(RenderLiquidGlass, RawShape)> _cachedShapes = [];
-  List<(RenderLiquidGlass, RawShape)> get cachedShapes => _cachedShapes;
-
-  void setSettingsUniforms(
-    FragmentShader shader,
-    LiquidGlassSettings settings,
-  ) {
-    shader.setFloatUniforms(initialIndex: 2, (value) {
-      value
-        ..setColor(settings.glassColor)
-        ..setFloats([
-          settings.refractiveIndex,
-          settings.chromaticAberration,
-          settings.thickness,
-          0,
-          settings.lightAngle,
-          settings.lightIntensity,
-          settings.ambientStrength,
-          settings.saturation,
-        ])
-        ..setOffset(
-          Offset(
-            cos(settings.lightAngle),
-            sin(settings.lightAngle),
-          ),
-        );
-    });
-  }
-
-  void setShapeUniforms() {
-    final shapes = cachedShapes;
-    final shapeCount = shapes.length;
-
-    // Check shape count limit
-    if (shapeCount > LiquidGlass.maxShapesPerLayer) {
-      throw UnsupportedError(
-        'Only ${LiquidGlass.maxShapesPerLayer} shapes are supported at '
-        'the moment!',
-      );
-    }
-
-    blendShader.setFloatUniforms(initialIndex: 16, (value) {
-      value.setFloat(shapeCount.toDouble());
-      for (var i = 0; i < shapeCount; i++) {
-        final shape = i < shapes.length ? shapes[i].$2 : RawShape.none;
-        value
-          ..setFloat(shape.type.index.toDouble())
-          ..setFloat(shape.center.dx * devicePixelRatio)
-          ..setFloat(shape.center.dy * devicePixelRatio)
-          ..setFloat(shape.size.width * devicePixelRatio)
-          ..setFloat(shape.size.height * devicePixelRatio)
-          ..setFloat(shape.cornerRadius * devicePixelRatio);
-      }
-    });
-  }
+  List<PaintableLiquidGlassElement> _cachedElements = [];
+  List<PaintableLiquidGlassElement> get cachedElements => _cachedElements;
 
   @override
   @nonVirtual
@@ -130,69 +76,134 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlass, RawShape)> shapes,
+    List<PaintableLiquidGlassElement> shapes,
   );
 
   @protected
   void paintShapeContents(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlass, RawShape)> shapes, {
+    List<PaintableLiquidGlassElement> shapes, {
     required bool glassContainsChild,
   }) {
-    for (final (ro, _) in shapes) {
-      if (ro.glassContainsChild == glassContainsChild) {
-        final transform = ro.getTransformTo(this);
+    final renderObjects = shapes
+        .map((s) => switch (s) {
+              PaintableGlassShape(:final renderObject) => [renderObject],
+              PaintableGlassGroup(:final shapes) =>
+                shapes.map((e) => e.renderObject),
+            })
+        .expand((e) => e)
+        .toList();
+
+    for (final renderObject in renderObjects) {
+      if (renderObject.glassContainsChild == glassContainsChild) {
+        final transform = renderObject.getTransformTo(this);
 
         context.pushTransform(
           true,
           offset,
           transform,
-          ro.paintFromLayer,
+          renderObject.paintFromLayer,
         );
       }
     }
   }
 
   /// NEEDS TO BE CALLED AT THE BEGINNING OF PAINT
-  List<(RenderLiquidGlass, RawShape)> updateShapes() {
-    _cachedShapes = _collectShapes();
-    setShapeUniforms();
-    return _cachedShapes;
-  }
-
-  List<(RenderLiquidGlass, RawShape)> _collectShapes() {
-    final result = <(RenderLiquidGlass, RawShape)>[];
-    final computedShapes = glassLink.computedShapes;
-
-    // Check shape count limit
-    if (computedShapes.length > LiquidGlass.maxShapesPerLayer) {
-      throw UnsupportedError(
-        'Only ${LiquidGlass.maxShapesPerLayer} shapes are supported at the '
-        'moment!',
-      );
+  List<PaintableLiquidGlassElement> updateShapes() {
+    if (!glassLink.hasShapes) {
+      _cachedElements = [];
+      return _cachedElements;
     }
 
-    for (final shapeInfo in computedShapes) {
-      final renderObject = shapeInfo.renderObject;
+    final elements = <PaintableLiquidGlassElement>[];
 
-      if (renderObject is RenderLiquidGlass) {
-        final scale = _getScaleFromTransform(shapeInfo.transform);
-        result.add(
-          (
-            renderObject,
-            RawShape.fromLiquidGlassShape(
-              shapeInfo.shape,
-              center: shapeInfo.globalBounds.center,
-              size: shapeInfo.globalBounds.size,
-              scale: scale,
-            ),
+    for (final MapEntry(key: group, value: renderObjects)
+        in glassLink.shapes.entries) {
+      if (renderObjects.isEmpty) {
+        continue;
+      }
+
+      // This is a single shape
+      if (renderObjects.length == 1) {
+        final renderObject = renderObjects.keys.first;
+        final settings = group.settings;
+        if (settings.thickness <= 0) {
+          continue;
+        }
+
+        final transform = renderObject.getTransformTo(this);
+
+        final dpr = Matrix4.diagonal3Values(
+          devicePixelRatio,
+          devicePixelRatio,
+          1,
+        );
+
+        final shape = RawShape.fromLiquidGlassShape(
+          renderObject.shape,
+          rect: MatrixUtils.transformRect(
+            dpr.multiplied(transform),
+            Offset.zero & renderObject.size,
+          ),
+        );
+
+        elements.add(
+          PaintableGlassShape(
+            shape: shape,
+            renderObject: renderObject,
+            transform: transform,
+            settings: settings,
+            glassContainsChild: renderObject.glassContainsChild,
+          ),
+        );
+        continue;
+      }
+
+      // This is a group of shapes
+      final shapesInGroup = <PaintableGlassShapeInGroup>[];
+      Rect? groupBounds;
+      for (final renderObject in renderObjects.keys) {
+        final settings = group.settings;
+        if (settings.thickness <= 0) {
+          continue;
+        }
+        final transform = renderObject.getTransformTo(this);
+        final dpr = Matrix4.diagonal3Values(
+          devicePixelRatio,
+          devicePixelRatio,
+          1,
+        );
+        final shape = RawShape.fromLiquidGlassShape(
+          renderObject.shape,
+          rect: MatrixUtils.transformRect(
+            dpr.multiplied(transform),
+            Offset.zero & renderObject.size,
+          ),
+        );
+        shapesInGroup.add(
+          PaintableGlassShapeInGroup(
+            shape: shape,
+            renderObject: renderObject,
+            transform: transform,
+            glassContainsChild: renderObject.glassContainsChild,
+          ),
+        );
+        groupBounds = groupBounds?.expandToInclude(shape.rect) ?? shape.rect;
+      }
+      if (shapesInGroup.isNotEmpty) {
+        elements.add(
+          PaintableGlassGroup(
+            shapes: shapesInGroup,
+            settings: group.settings,
+            blendValue: group.blendPx,
+            paintBounds: groupBounds!,
           ),
         );
       }
     }
 
-    return result;
+    return _cachedElements = elements;
   }
 
   @override
@@ -237,4 +248,167 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     final scaleYSq = c * c + d * d;
     return sqrt(sqrt(scaleXSq * scaleYSq));
   }
+}
+
+@internal
+sealed class PaintableLiquidGlassElement {
+  const PaintableLiquidGlassElement({
+    required this.settings,
+  });
+
+  /// The settings to paint with
+  final LiquidGlassSettings settings;
+
+  /// The bounds over which the shape should paint
+  Rect get paintBounds;
+
+  double? get blendValue => null;
+
+  FragmentShader prepareShader({
+    required FragmentShader blendShader,
+    required FragmentShader squircleShader,
+    required FragmentShader ovalShader,
+    required FragmentShader rRectShader,
+    required double devicePixelRatio,
+  });
+
+  @protected
+  void setSettingsOnShader(FragmentShader shader) {
+    shader.setFloatUniforms(initialIndex: 2, (value) {
+      value
+        ..setColor(settings.glassColor)
+        ..setFloats([
+          settings.refractiveIndex,
+          settings.chromaticAberration,
+          settings.thickness,
+          blendValue ?? 0,
+          settings.lightAngle,
+          settings.lightIntensity,
+          settings.ambientStrength,
+          settings.saturation,
+        ])
+        ..setOffset(
+          Offset(
+            cos(settings.lightAngle),
+            sin(settings.lightAngle),
+          ),
+        );
+    });
+  }
+}
+
+/// Represents a single shape that will be painted with a single layer.
+class PaintableGlassShape extends PaintableLiquidGlassElement {
+  const PaintableGlassShape({
+    required this.shape,
+    required this.renderObject,
+    required this.transform,
+    required super.settings,
+    required this.glassContainsChild,
+  });
+
+  /// The shape to paint
+  final RawShape shape;
+
+  /// The RenderObject that owns the shape
+  final RenderLiquidGlass renderObject;
+
+  /// The transform from the shape's RenderObject to the layer
+  final Matrix4 transform;
+
+  final bool glassContainsChild;
+
+  @override
+  Rect get paintBounds => shape.rect;
+
+  @override
+  FragmentShader prepareShader({
+    required FragmentShader blendShader,
+    required FragmentShader squircleShader,
+    required FragmentShader ovalShader,
+    required FragmentShader rRectShader,
+    required double devicePixelRatio,
+  }) {
+    final shader = switch (shape.type) {
+      RawShapeType.ellipse => ovalShader,
+      RawShapeType.roundedRectangle => rRectShader,
+      RawShapeType.squircle || RawShapeType.none => squircleShader,
+    };
+
+    setSettingsOnShader(shader);
+
+    blendShader.setFloatUniforms(initialIndex: 15, (value) {
+      value
+        ..setFloat(shape.rect.center.dx)
+        ..setFloat(shape.rect.center.dy)
+        ..setFloat(shape.rect.size.width)
+        ..setFloat(shape.rect.size.height)
+        ..setFloat(shape.cornerRadius * devicePixelRatio);
+    });
+
+    return shader;
+  }
+}
+
+class PaintableGlassGroup extends PaintableLiquidGlassElement {
+  const PaintableGlassGroup({
+    required this.shapes,
+    required super.settings,
+    required this.paintBounds,
+    required this.blendValue,
+  });
+
+  /// The shapes in the group
+  final List<PaintableGlassShapeInGroup> shapes;
+
+  final Rect paintBounds;
+
+  final double blendValue;
+
+  @override
+  FragmentShader prepareShader({
+    required FragmentShader blendShader,
+    required FragmentShader squircleShader,
+    required FragmentShader ovalShader,
+    required FragmentShader rRectShader,
+    required double devicePixelRatio,
+  }) {
+    setSettingsOnShader(blendShader);
+
+    blendShader.setFloatUniforms(initialIndex: 16, (value) {
+      value.setFloat(shapes.length.toDouble());
+      for (var i = 0; i < shapes.length; i++) {
+        final shape = shapes[i].shape;
+
+        value
+          ..setFloat(shape.type.index.toDouble())
+          ..setFloat(shape.rect.center.dx)
+          ..setFloat(shape.rect.center.dy)
+          ..setFloat(shape.rect.size.width)
+          ..setFloat(shape.rect.size.height)
+          ..setFloat(shape.cornerRadius * devicePixelRatio);
+      }
+    });
+    return blendShader;
+  }
+}
+
+class PaintableGlassShapeInGroup {
+  const PaintableGlassShapeInGroup({
+    required this.shape,
+    required this.renderObject,
+    required this.transform,
+    required this.glassContainsChild,
+  });
+
+  /// The shape to paint
+  final RawShape shape;
+
+  /// The RenderObject that owns the shape
+  final RenderLiquidGlass renderObject;
+
+  /// The transform from the shape's RenderObject to the layer
+  final Matrix4 transform;
+
+  final bool glassContainsChild;
 }

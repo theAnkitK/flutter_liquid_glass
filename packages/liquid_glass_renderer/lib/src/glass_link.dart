@@ -23,6 +23,10 @@ class GlassLink with ChangeNotifier {
   final Map<LiquidGlassBlendGroup, Map<RenderLiquidGlass, GlassShapeInfo>>
       _shapes = {};
 
+  /// Get all registered shapes.
+  Map<LiquidGlassBlendGroup, Map<RenderLiquidGlass, GlassShapeInfo>>
+      get shapes => _shapes;
+
   /// Register a shape with this link.
   void registerShape(
     LiquidGlassBlendGroup blendGroup,

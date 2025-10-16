@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/shared.dart';
-import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -71,43 +70,46 @@ class BasicApp extends HookWidget {
                       spacing: 16,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: 16,
-                          children: [
-                            LiquidStretch(
-                              child: LiquidGlass.inLayer(
-                                shape: LiquidRoundedSuperellipse(
-                                  borderRadius: Radius.circular(20),
-                                ),
-                                child: GlassGlow(
-                                  child: SizedBox.square(
-                                    dimension: 100,
-                                    child: Center(child: Text('REAL')),
+                        LiquidGlassBlendGroup(
+                          settings: settings,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 16,
+                            children: [
+                              LiquidStretch(
+                                child: LiquidGlass.inBlendGroup(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
                                   ),
-                                ),
-                              ),
-                            ),
-                            LiquidStretch(
-                              child: LiquidGlass.inLayer(
-                                shape: LiquidRoundedSuperellipse(
-                                  borderRadius: Radius.circular(20),
-                                ),
-                                child: GlassGlow(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
+                                  child: GlassGlow(
                                     child: SizedBox.square(
                                       dimension: 100,
-                                      child: Center(child: Text('FAKE')),
+                                      child: Center(child: Text('REAL')),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                              LiquidStretch(
+                                child: LiquidGlass.inBlendGroup(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
+                                  ),
+                                  child: GlassGlow(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      child: SizedBox.square(
+                                        dimension: 100,
+                                        child: Center(child: Text('FAKE')),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         LiquidStretch(
-                          child: LiquidGlass.inLayer(
+                          child: LiquidGlass(
                             shape: LiquidRoundedSuperellipse(
                               borderRadius: Radius.circular(20),
                             ),
@@ -128,47 +130,6 @@ class BasicApp extends HookWidget {
                   },
                 ),
               ),
-              if (false)
-                SafeArea(
-                  bottom: false,
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: LiquidGlassBottomBar(
-                      extraButton: LiquidGlassBottomBarExtraButton(
-                        icon: CupertinoIcons.add_circled,
-                        onTap: () {
-                          Navigator.of(context).push(
-                            CupertinoPageRoute(
-                              builder: (context) => CupertinoPageScaffold(
-                                child: SizedBox(),
-                                navigationBar: CupertinoNavigationBar.large(),
-                              ),
-                            ),
-                          );
-                        },
-                        label: '',
-                      ),
-                      tabs: [
-                        LiquidGlassBottomBarTab(
-                          label: 'Home',
-                          icon: CupertinoIcons.home,
-                        ),
-                        LiquidGlassBottomBarTab(
-                          label: 'Profile',
-                          icon: CupertinoIcons.person,
-                        ),
-                        LiquidGlassBottomBarTab(
-                          label: 'Settings',
-                          icon: CupertinoIcons.settings,
-                        ),
-                      ],
-                      selectedIndex: tab.value,
-                      onTabSelected: (index) {
-                        tab.value = index;
-                      },
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
