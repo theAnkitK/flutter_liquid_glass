@@ -166,8 +166,6 @@ class RenderLiquidGlass extends RenderProxyBox {
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
-    //TODO are these necessary ??
-    markNeedsPaint();
     _updateGlassLink();
   }
 
@@ -176,7 +174,6 @@ class RenderLiquidGlass extends RenderProxyBox {
   set glassContainsChild(bool value) {
     if (_glassContainsChild == value) return;
     _glassContainsChild = value;
-    markNeedsPaint();
     _updateGlassLink();
   }
 
@@ -194,7 +191,6 @@ class RenderLiquidGlass extends RenderProxyBox {
     if (_blendGroup == value) return;
     final oldBlendGroup = _blendGroup;
     _blendGroup = value;
-    markNeedsPaint();
     _updateGlassLink(oldBlendGroup);
   }
 
@@ -252,12 +248,7 @@ class RenderLiquidGlass extends RenderProxyBox {
   Matrix4? lastTransform;
 
   @override
-  void paint(PaintingContext context, Offset offset) {
-    _glassLink?.notifyShapeLayoutChanged(
-      blendGroup,
-      this,
-    );
-  }
+  void paint(PaintingContext context, Offset offset) {}
 
   void paintFromLayer(PaintingContext context, Offset offset) {
     super.paint(context, offset);

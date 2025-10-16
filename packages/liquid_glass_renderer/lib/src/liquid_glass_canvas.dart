@@ -209,7 +209,6 @@ class _ShaderLayer extends OffsetLayer {
     markNeedsAddToScene();
   }
 
-  ui.Image? _childImage;
   final Map<int, ui.Image> _blurredImages = {};
 
   @override
@@ -225,7 +224,7 @@ class _ShaderLayer extends OffsetLayer {
     final canvas = ui.Canvas(recorder)
       ..scale(1 / devicePixelRatio)
       // Draw the actual child first
-      ..drawImage(_childImage!, Offset.zero, ui.Paint());
+      ..drawImage(_blurredImages[0]!, Offset.zero, ui.Paint());
 
     for (final element in elements) {
       final shader = element.prepareShader(
@@ -252,11 +251,14 @@ class _ShaderLayer extends OffsetLayer {
   void _captureImages() {
     _clearImages();
 
-    final image = _childImage = _captureImage();
+    final image = _blurredImages[0] = _captureImage();
 
     final uniqueBlurs = elements.map((e) => e.settings.blur.round()).toSet();
     for (final blur in uniqueBlurs) {
-      _blurredImages[blur] = _buildBlurredImage(image, blur.toDouble());
+      final blurred = _buildBlurredImage(image, blur.toDouble());
+      if (blurred != null) {
+        _blurredImages[blur] = blurred;
+      }
     }
   }
 
@@ -287,9 +289,9 @@ class _ShaderLayer extends OffsetLayer {
         );
   }
 
-  ui.Image _buildBlurredImage(ui.Image image, double blur) {
+  ui.Image? _buildBlurredImage(ui.Image image, double blur) {
     if (blur <= 0) {
-      return image;
+      return null;
     }
 
     final recorder = ui.PictureRecorder();
@@ -309,7 +311,6 @@ class _ShaderLayer extends OffsetLayer {
   }
 
   void _clearImages() {
-    _childImage?.dispose();
     _blurredImages
       ..forEach((key, value) => value.dispose())
       ..clear();
