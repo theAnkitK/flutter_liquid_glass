@@ -182,28 +182,6 @@ void main() {
 
     vec3 normal = getNormal(sd, uThickness);
     
-    // Use shared rendering pipeline
-    fragColor = renderLiquidGlass(
-        screenUV, 
-        fragCoord, 
-        uSize, 
-        sd, 
-        uThickness, 
-        uRefractiveIndex, 
-        uChromaticAberration, 
-        uGlassColor, 
-        uLightDirection, 
-        uLightIntensity, 
-        uAmbientStrength, 
-        uBackgroundTexture, 
-        normal,
-        foregroundAlpha,
-        0.0,
-        uSaturation
-    );
-    
     // Apply debug normals visualization using shared function
-    #if DEBUG_NORMALS
-        fragColor = debugNormals(fragColor, normal, true);
-    #endif
+    fragColor = debugNormals(fragColor, normal, true);
 }

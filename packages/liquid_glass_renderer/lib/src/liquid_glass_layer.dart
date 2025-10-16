@@ -101,7 +101,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
     return RepaintBoundary(
       child: ShaderBuilder(
-        assetKey: dummyShader,
+        assetKey: liquidGlassShader,
         (context, shader, child) => _RawShapes(
           shader: shader,
           settings: widget.settings,
