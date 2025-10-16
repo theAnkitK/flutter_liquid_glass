@@ -54,5 +54,5 @@ void main() {
         vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
     #endif
     
-    fragColor = vec4(1.0, 0.0, 1.0, 1.0); // Debug magenta
+    fragColor = mix(texture(uBackgroundTexture, screenUV), vec4(1, 0, 1, 1), .5);
 }
