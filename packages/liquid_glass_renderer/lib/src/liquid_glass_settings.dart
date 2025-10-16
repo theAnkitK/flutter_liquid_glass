@@ -2,8 +2,6 @@ import 'dart:math';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 
 /// Represents the settings for a liquid glass effect.
 class LiquidGlassSettings with EquatableMixin {
@@ -13,7 +11,6 @@ class LiquidGlassSettings with EquatableMixin {
     this.thickness = 20,
     this.blur = 0,
     this.chromaticAberration = .01,
-    this.blend = 20,
     this.lightAngle = 0.5 * pi,
     this.lightIntensity = .2,
     this.ambientStrength = .01,
@@ -31,7 +28,6 @@ class LiquidGlassSettings with EquatableMixin {
     required double frost,
     double lightIntensity = 50,
     double lightAngle = 0.5 * pi,
-    double blend = 20,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
   }) : this(
           refractiveIndex: 1 + (refraction / 100) * 0.2,
@@ -42,17 +38,8 @@ class LiquidGlassSettings with EquatableMixin {
           lightAngle: lightAngle,
           ambientStrength: 0.1,
           saturation: 1.05,
-          blend: blend,
           glassColor: glassColor,
         );
-
-  /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
-  ///
-  /// This will look for the nearest ancestor [LiquidGlassLayer] or
-  /// [LiquidGlassScope] widget in the widget tree.
-  static LiquidGlassSettings of(BuildContext context) {
-    return LiquidGlassScope.of(context).settings;
-  }
 
   /// The color tint of the glass effect.
   ///
@@ -77,9 +64,6 @@ class LiquidGlassSettings with EquatableMixin {
   ///
   /// Higher values create more pronounced color fringes.
   final double chromaticAberration;
-
-  /// How strongly the shapes in this layer will blend together.
-  final double blend;
 
   /// The angle of the light source in radians.
   ///
@@ -115,7 +99,6 @@ class LiquidGlassSettings with EquatableMixin {
     double? thickness,
     double? blur,
     double? chromaticAberration,
-    double? blend,
     double? lightAngle,
     double? lightIntensity,
     double? ambientStrength,
@@ -127,7 +110,6 @@ class LiquidGlassSettings with EquatableMixin {
         thickness: thickness ?? this.thickness,
         blur: blur ?? this.blur,
         chromaticAberration: chromaticAberration ?? this.chromaticAberration,
-        blend: blend ?? this.blend,
         lightAngle: lightAngle ?? this.lightAngle,
         lightIntensity: lightIntensity ?? this.lightIntensity,
         ambientStrength: ambientStrength ?? this.ambientStrength,
@@ -141,7 +123,6 @@ class LiquidGlassSettings with EquatableMixin {
         thickness,
         blur,
         chromaticAberration,
-        blend,
         lightAngle,
         lightIntensity,
         ambientStrength,

@@ -14,7 +14,7 @@ precision mediump float;
 #define DEBUG_NORMALS 0
 
 #include <flutter/runtime_effect.glsl>
-#include "shared.glsl"
+#include "render.glsl"
 #include "sdf.glsl"
 
 // Optimized uniform layout - grouped into vectors for better performance
@@ -37,7 +37,7 @@ float uSaturation = uLightConfig.w;
 layout(location = 5) uniform float uNumShapes;             // numShapes  
 layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
 
-uniform sampler2D uBackgroundTexture;
+uniform sampler2D uBlurredTexture;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
@@ -57,7 +57,8 @@ void main() {
 
     // Early discard for pixels outside glass shapes to reduce overdraw
     if (foregroundAlpha < 0.01) {
-        fragColor = texture(uBackgroundTexture, screenUV);
+        // Outside we sample the background texture
+        fragColor = vec4(0, 0, 0, 0);
         return;
     }
 
@@ -76,7 +77,7 @@ void main() {
         uLightDirection, 
         uLightIntensity, 
         uAmbientStrength, 
-        uBackgroundTexture, 
+        uBlurredTexture, 
         normal,
         foregroundAlpha,
         0.0,

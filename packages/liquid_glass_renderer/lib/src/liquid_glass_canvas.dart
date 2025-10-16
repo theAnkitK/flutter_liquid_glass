@@ -1,31 +1,45 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
+import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_link_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
 import 'package:liquid_glass_renderer/src/raw_shapes.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
-class LiquidGlassFilter extends StatefulWidget {
-  const LiquidGlassFilter({
-    super.key,
-    required this.settings,
+/// {@template liquid_glass_canvas}
+/// A widget that provides a liquid glass effect to its descendants.
+///
+/// You need to wrap this around any widget that you want liquid glass to be
+/// painted on top of.
+///
+/// The most common use case would be to wrap this around each of your screens,
+/// but you can also wrap your app in it.
+///
+/// Any [LiquidGlass] or [LiquidGlassBlendGroup] widgets inside of this will
+/// be painted after [child], but in the order that they were declared in the
+/// widget tree.
+/// {@endtemplate}
+class LiquidGlassCanvas extends StatefulWidget {
+  /// {@macro liquid_glass_canvas}
+  const LiquidGlassCanvas({
     required this.child,
+    super.key,
   });
 
-  final LiquidGlassSettings settings;
+  /// The child that you want liquid glass to be painted on top of.
   final Widget child;
 
   @override
-  State<LiquidGlassFilter> createState() => _LiquidGlassFilterState();
+  State<LiquidGlassCanvas> createState() => _LiquidGlassCanvasState();
 }
 
-class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
+class _LiquidGlassCanvasState extends State<LiquidGlassCanvas> {
   late final _glassLink = GlassLink();
 
   @override
@@ -36,19 +50,24 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
 
   @override
   Widget build(BuildContext context) {
-    return LiquidGlassScope(
-      settings: widget.settings,
+    return LiquidGlassLinkScope(
       link: _glassLink,
-      child: ShaderBuilder(
-        (context, shader, child) {
+      child: MultiShaderBuilder(
+        (context, shaders, child) {
           return _RawLiquidGlassFilter(
-            shader: shader,
-            settings: widget.settings,
+            blendShader: shaders[0],
+            squircleShader: shaders[1],
+            // TODO let's support all of it
+            ovalShader: shaders[1],
+            rRectShader: shaders[1],
             glassLink: _glassLink,
             child: child,
           );
         },
-        assetKey: liquidGlassFilterShader,
+        assetKeys: [
+          liquidGlassFilterShader,
+          liquidGlassSquircleShader,
+        ],
         child: widget.child,
       ),
     );
@@ -57,25 +76,30 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
 
 class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
   const _RawLiquidGlassFilter({
-    required this.shader,
-    required this.settings,
+    required this.blendShader,
+    required this.squircleShader,
+    required this.ovalShader,
+    required this.rRectShader,
     required this.glassLink,
     required super.child,
   });
 
-  final FragmentShader shader;
-
-  final LiquidGlassSettings settings;
+  final FragmentShader blendShader;
+  final FragmentShader squircleShader;
+  final FragmentShader ovalShader;
+  final FragmentShader rRectShader;
 
   final GlassLink glassLink;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderLiquidGlassFilter(
-      settings: settings,
+      blendShader: blendShader,
+      squircleShader: squircleShader,
+      ovalShader: ovalShader,
+      rRectShader: rRectShader,
       glassLink: glassLink,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-      shader: shader,
     );
   }
 
@@ -85,8 +109,6 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
     _RenderLiquidGlassFilter renderObject,
   ) {
     renderObject
-      ..shader = shader
-      ..settings = settings
       ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
       ..glassLink = glassLink;
   }
@@ -94,10 +116,12 @@ class _RawLiquidGlassFilter extends SingleChildRenderObjectWidget {
 
 class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
   _RenderLiquidGlassFilter({
+    required super.blendShader,
+    required super.squircleShader,
+    required super.ovalShader,
+    required super.rRectShader,
     required super.devicePixelRatio,
-    required super.settings,
     required super.glassLink,
-    required super.shader,
   });
 
   @override
@@ -121,12 +145,10 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
 
     final layer = (this.layer ??= _ShaderLayer())
       ..shapes = shapes
-      ..shader = shader
       ..devicePixelRatio = devicePixelRatio
       ..bounds = offset & size
       ..offset = offset
-      ..shapeBounds = shapeBounds
-      ..blur = settings.blur;
+      ..shapeBounds = shapeBounds;
 
     paintShapeContents(
       context,
@@ -168,16 +190,8 @@ class _ShaderLayer extends OffsetLayer {
   List<(RenderLiquidGlass, RawShape)> _shapes = [];
   List<(RenderLiquidGlass, RawShape)> get shapes => _shapes;
   set shapes(List<(RenderLiquidGlass, RawShape)> value) {
-    if (_shapes == value) return;
+    if (listEquals(_shapes, value)) return;
     _shapes = value;
-    markNeedsAddToScene();
-  }
-
-  FragmentShader? _shader;
-  FragmentShader get shader => _shader!;
-  set shader(FragmentShader value) {
-    if (_shader == value) return;
-    _shader = value;
     markNeedsAddToScene();
   }
 
@@ -205,14 +219,6 @@ class _ShaderLayer extends OffsetLayer {
     markNeedsAddToScene();
   }
 
-  Path? _clipPath;
-  Path get clipPath => _clipPath!;
-  set clipPath(Path value) {
-    if (_clipPath == value) return;
-    _clipPath = value;
-    markNeedsAddToScene();
-  }
-
   ui.Image? childImage;
 
   @override
@@ -231,6 +237,13 @@ class _ShaderLayer extends OffsetLayer {
           ..setFloat(1, bounds.height * devicePixelRatio);
         canvas
           ..scale(1 / devicePixelRatio)
+          ..drawImage(
+            childImage!,
+            bounds.topLeft * devicePixelRatio,
+            ui.Paint(),
+          )
+
+          // Finally, draw liquid glass
           ..drawRect(
             (shapeBounds.topLeft * devicePixelRatio) &
                 (shapeBounds.size * devicePixelRatio),

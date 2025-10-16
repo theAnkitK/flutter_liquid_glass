@@ -4,8 +4,7 @@ library liquid_glass_renderer;
 export 'src/fake_glass.dart' show FakeGlass;
 export 'src/glass_glow.dart' show GlassGlow, GlassGlowLayer;
 export 'src/liquid_glass.dart' show LiquidGlass;
-export 'src/liquid_glass_layer.dart' show LiquidGlassLayer;
-export 'src/liquid_glass_filter.dart' show LiquidGlassFilter;
+export 'src/liquid_glass_canvas.dart' show LiquidGlassCanvas;
 export 'src/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/liquid_shape.dart';
 export 'src/stretch.dart'

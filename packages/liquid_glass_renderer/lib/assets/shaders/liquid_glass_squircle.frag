@@ -14,7 +14,7 @@ precision mediump float;
 #define DEBUG_NORMALS 0
 
 #include <flutter/runtime_effect.glsl>
-#include "shared.glsl"
+#include "render.glsl"
 #include "sdf.glsl"
 
 // Optimized uniform layout - grouped into vectors for better performance
@@ -31,12 +31,12 @@ float uLightIntensity = uLightConfig.y;
 float uAmbientStrength = uLightConfig.z;
 float uThickness = uOpticalProps.z;
 float uRefractiveIndex = uOpticalProps.x;
-float uBlend = uOpticalProps.w;
+float uBlend = uOpticalProps.w; // ignored
 float uSaturation = uLightConfig.w;
 
-layout(location = 5) uniform float uNumShapes;             // numShapes  
-layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
+layout(location = 5) uniform float uShapeData[5];
 
+uniform sampler2D uBackgroundTexture;
 uniform sampler2D uBlurredTexture;
 layout(location = 0) out vec4 fragColor;
 
@@ -51,14 +51,18 @@ void main() {
         vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
     #endif
     
-    // Generate shape and calculate normal using shader-specific method
-    float sd = sceneSDF(fragCoord, int(uNumShapes), uShapeData, uBlend);
+    vec2 center = vec2(uShapeData[0], uShapeData[1]);
+    vec2 size = vec2(uShapeData[2], uShapeData[3]);
+    float cornerRadius = uShapeData[4];
+    
+    float sd = sdfSquircle(fragCoord - center, size / 2.0, cornerRadius);
+
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
 
     // Early discard for pixels outside glass shapes to reduce overdraw
     if (foregroundAlpha < 0.01) {
         // Outside we sample the background texture
-        fragColor = vec4(0, 0, 0, 0);
+        fragColor = texture(uBackgroundTexture, screenUV);
         return;
     }
 

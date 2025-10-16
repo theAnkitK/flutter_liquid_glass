@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
-import 'package:liquid_glass_renderer/src/liquid_shape.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_link_scope.dart';
 
 /// A link that connects liquid glass shapes to their parent layer for
 /// efficient communication of position, size, and transform changes.
@@ -16,89 +16,73 @@ class GlassLink with ChangeNotifier {
   GlassLink();
 
   static GlassLink of(BuildContext context) {
-    return LiquidGlassScope.of(context).link;
+    return LiquidGlassLinkScope.of(context).link;
   }
 
   /// Information about a shape registered with this link.
-  final Map<RenderObject, GlassShapeInfo> _shapes = {};
+  final Map<LiquidGlassBlendGroup, Map<RenderLiquidGlass, GlassShapeInfo>>
+      _shapes = {};
 
   /// Register a shape with this link.
   void registerShape(
-    RenderObject renderObject,
+    LiquidGlassBlendGroup blendGroup,
+    RenderLiquidGlass renderObject,
     LiquidShape shape, {
     required bool glassContainsChild,
   }) {
-    _shapes[renderObject] = GlassShapeInfo(
+    _shapes.putIfAbsent(
+      blendGroup,
+      () => {},
+    )[renderObject] = GlassShapeInfo(
       shape: shape,
       glassContainsChild: glassContainsChild,
+      blendGroup: blendGroup,
     );
+
     _notifyChange();
   }
 
   /// Unregister a shape from this link.
-  void unregisterShape(RenderObject renderObject) {
-    _shapes.remove(renderObject);
+  void unregisterShape(
+    LiquidGlassBlendGroup blendGroup,
+    RenderObject renderObject,
+  ) {
+    _shapes[blendGroup]?.remove(renderObject);
     _notifyChange();
   }
 
   /// Update the shape properties for a registered render object.
   void updateShape(
-    RenderObject renderObject,
+    LiquidGlassBlendGroup blendGroup,
+    RenderLiquidGlass renderObject,
     LiquidShape shape, {
     required bool glassContainsChild,
+    LiquidGlassBlendGroup? oldBlendGroup,
   }) {
-    final info = _shapes[renderObject];
-    if (info != null) {
-      info
-        ..shape = shape
-        ..glassContainsChild = glassContainsChild;
-      _notifyChange();
-    }
-  }
-
-  /// Notify that a shape's layout has changed.
-  void notifyShapeLayoutChanged(RenderObject renderObject) {
-    if (_shapes.containsKey(renderObject)) {
-      _notifyChange();
-    }
-  }
-
-  /// Get all currently registered shapes with their computed information.
-  List<ComputedShapeInfo> get computedShapes {
-    final result = <ComputedShapeInfo>[];
-
-    for (final entry in _shapes.entries) {
-      final renderObject = entry.key;
-      final shapeInfo = entry.value;
-
-      if (renderObject is RenderBox &&
-          renderObject.attached &&
-          renderObject.hasSize) {
-        try {
-          // Get transform relative to global coordinates
-          final transform = renderObject.getTransformTo(null);
-          final rect = MatrixUtils.transformRect(
-            transform,
-            Offset.zero & renderObject.size,
-          );
-
-          result.add(
-            ComputedShapeInfo(
-              renderObject: renderObject,
-              shape: shapeInfo.shape,
-              glassContainsChild: shapeInfo.glassContainsChild,
-              globalBounds: rect,
-              transform: transform,
-            ),
-          );
-        } catch (e) {
-          // Skip shapes that can't be transformed
-          debugPrint('Failed to compute shape info: $e');
-        }
+    if (oldBlendGroup != null && oldBlendGroup != blendGroup) {
+      // Move shape to new blend group
+      final info = _shapes[oldBlendGroup]?.remove(renderObject);
+      if (info != null) {
+        _shapes.putIfAbsent(blendGroup, () => {})[renderObject] = info;
       }
     }
 
-    return result;
+    _shapes[blendGroup]![renderObject]!
+      ..shape = shape
+      ..blendGroup = blendGroup
+      ..glassContainsChild = glassContainsChild;
+
+    _notifyChange();
+  }
+
+  /// Notify that a shape's layout has changed.
+  void notifyShapeLayoutChanged(
+    LiquidGlassBlendGroup blendGroup,
+    RenderLiquidGlass renderObject,
+  ) {
+    if (_shapes[blendGroup]?.containsKey(renderObject) ?? false) {
+      _notifyChange();
+    }
   }
 
   /// Check if any shapes are registered.
@@ -141,38 +125,15 @@ class GlassShapeInfo {
   GlassShapeInfo({
     required this.shape,
     required this.glassContainsChild,
+    required this.blendGroup,
   });
 
   /// The liquid shape.
   LiquidShape shape;
 
+  /// The blend group this shape belongs to.
+  LiquidGlassBlendGroup blendGroup;
+
   /// Whether the glass contains the child.
   bool glassContainsChild;
-}
-
-/// Computed information about a shape including its global positioning.
-class ComputedShapeInfo {
-  /// Creates a new [ComputedShapeInfo].
-  ComputedShapeInfo({
-    required this.renderObject,
-    required this.shape,
-    required this.glassContainsChild,
-    required this.globalBounds,
-    required this.transform,
-  });
-
-  /// The render object for this shape.
-  final RenderObject renderObject;
-
-  /// The liquid shape.
-  final LiquidShape shape;
-
-  /// Whether the glass contains the child.
-  final bool glassContainsChild;
-
-  /// The global bounds of the shape.
-  final Rect globalBounds;
-
-  /// The transform matrix for the shape.
-  final Matrix4 transform;
 }

@@ -161,7 +161,7 @@ class _SingleTestApp extends StatelessWidget {
       RenderMode.none => MaterialApp(
         home: Scaffold(body: _GridPaperBackground(child: glass)),
       ),
-      RenderMode.filter => LiquidGlassFilter(
+      RenderMode.filter => LiquidGlassCanvas(
         settings: settings,
         child: MaterialApp(
           home: Scaffold(body: _GridPaperBackground(child: glass)),
@@ -250,7 +250,7 @@ class _MultiTestApp extends StatelessWidget {
           body: _GridPaperBackground(child: Center(child: content)),
         ),
       ),
-      RenderMode.filter => LiquidGlassFilter(
+      RenderMode.filter => LiquidGlassCanvas(
         settings: settings,
         child: MaterialApp(
           home: Scaffold(

@@ -40,16 +40,7 @@ class BasicApp extends HookWidget {
           lightAngleAnimation: light,
         ).show(context);
       },
-      child: ListenableBuilder(
-        listenable: settingsNotifier,
-        builder: (context, child) {
-          final settings = settingsNotifier.value.copyWith(
-            glassColor: CupertinoTheme.of(
-              context,
-            ).barBackgroundColor.withValues(alpha: 0.4),
-          );
-          return LiquidGlassFilter(settings: settings, child: child!);
-        },
+      child: LiquidGlassCanvas(
         child: CupertinoPageScaffold(
           child: Stack(
             children: [

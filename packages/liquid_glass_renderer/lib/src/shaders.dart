@@ -19,5 +19,5 @@ final String liquidGlassFilterShader =
     '${_shadersRoot}lib/assets/shaders/liquid_glass_filter.frag';
 
 @internal
-final String arbitraryShader =
-    '${_shadersRoot}lib/assets/shaders/liquid_glass_arbitrary.frag';
+final String liquidGlassSquircleShader =
+    '${_shadersRoot}lib/assets/shaders/liquid_glass_squircle.frag';

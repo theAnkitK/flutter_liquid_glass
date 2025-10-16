@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_link_scope.dart';
 import 'package:meta/meta.dart';
 
 /// A liquid glass shape.
@@ -34,33 +34,22 @@ import 'package:meta/meta.dart';
 class LiquidGlass extends StatelessWidget {
   /// Creates a new [LiquidGlass] on its own layer with the given [child],
   /// [shape], and [settings].
-  ///
-  /// This shape will not blend together with other shapes, so
-  /// [LiquidGlassSettings.blend] will be ignored.
   const LiquidGlass({
     required this.child,
     required this.shape,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
-    this.restrictThickness = true,
     super.key,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
   }) : _settings = settings;
 
-  /// Creates a new [LiquidGlass] on a shared layer with the given [child] and
-  /// [shape].
-  ///
-  /// This widget will assume that it is a child of a [LiquidGlassLayer], from
-  /// where it will take the [LiquidGlassSettings].
-  /// It will also blend together with other shapes in that layer.
-  const LiquidGlass.inLayer({
+  const LiquidGlass.inBlendGroup({
     required this.child,
     required this.shape,
-    super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
-  })  : _settings = null,
-        restrictThickness = false;
+    super.key,
+  }) : _settings = null;
 
   /// Maximum number of shapes supported per layer.
   static const int maxShapesPerLayer = 16;
@@ -91,17 +80,13 @@ class LiquidGlass extends StatelessWidget {
   /// Defaults to [Clip.none], so [child] will not be clipped.
   final Clip clipBehavior;
 
-  /// {@macro liquid_glass_renderer.restrict_thickness}
-  final bool restrictThickness;
-
   final LiquidGlassSettings? _settings;
 
   @override
   Widget build(BuildContext context) {
-    switch (_settings) {
-      case null:
-        return _RawLiquidGlass(
-          glassLink: LiquidGlassScope.of(context).link,
+    return switch (_settings) {
+      null => _RawLiquidGlass(
+          glassLink: LiquidGlassLinkScope.of(context).link,
           shape: shape,
           glassContainsChild: glassContainsChild,
           child: ClipPath(
@@ -109,27 +94,21 @@ class LiquidGlass extends StatelessWidget {
             clipBehavior: clipBehavior,
             child: GlassGlowLayer(child: child),
           ),
-        );
-      case final settings:
-        return LiquidGlassLayer(
+        ),
+      final settings => LiquidGlassBlendGroup(
           settings: settings,
-          restrictThickness: restrictThickness,
-          child: Builder(
-            builder: (context) {
-              return _RawLiquidGlass(
-                glassLink: LiquidGlassScope.of(context).link,
-                shape: shape,
-                glassContainsChild: glassContainsChild,
-                child: ClipPath(
-                  clipper: ShapeBorderClipper(shape: shape),
-                  clipBehavior: clipBehavior,
-                  child: GlassGlowLayer(child: child),
-                ),
-              );
-            },
+          child: _RawLiquidGlass(
+            glassLink: LiquidGlassLinkScope.of(context).link,
+            shape: shape,
+            glassContainsChild: glassContainsChild,
+            child: ClipPath(
+              clipper: ShapeBorderClipper(shape: shape),
+              clipBehavior: clipBehavior,
+              child: GlassGlowLayer(child: child),
+            ),
           ),
-        );
-    }
+        ),
+    };
   }
 }
 
@@ -153,6 +132,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       shape: shape,
       glassContainsChild: glassContainsChild,
       glassLink: glassLink,
+      blendGroup: LiquidGlassBlendGroup.of(context),
     );
   }
 
@@ -164,7 +144,8 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     renderObject
       ..shape = shape
       ..glassContainsChild = glassContainsChild
-      ..glassLink = glassLink;
+      ..glassLink = glassLink
+      ..blendGroup = LiquidGlassBlendGroup.of(context);
   }
 }
 
@@ -174,15 +155,18 @@ class RenderLiquidGlass extends RenderProxyBox {
     required LiquidShape shape,
     required bool glassContainsChild,
     required GlassLink glassLink,
+    LiquidGlassBlendGroup? blendGroup,
   })  : _shape = shape,
         _glassContainsChild = glassContainsChild,
-        _glassLink = glassLink;
+        _glassLink = glassLink,
+        _blendGroup = blendGroup;
 
   late LiquidShape _shape;
   LiquidShape get shape => _shape;
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
+    //TODO are these necessary ??
     markNeedsPaint();
     _updateGlassLink();
   }
@@ -204,6 +188,16 @@ class RenderLiquidGlass extends RenderProxyBox {
     _registerWithLink();
   }
 
+  LiquidGlassBlendGroup? _blendGroup;
+  LiquidGlassBlendGroup get blendGroup => _blendGroup!;
+  set blendGroup(LiquidGlassBlendGroup value) {
+    if (_blendGroup == value) return;
+    final oldBlendGroup = _blendGroup;
+    _blendGroup = value;
+    markNeedsPaint();
+    _updateGlassLink(oldBlendGroup);
+  }
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
@@ -219,6 +213,7 @@ class RenderLiquidGlass extends RenderProxyBox {
   void _registerWithLink() {
     if (_glassLink != null) {
       _glassLink!.registerShape(
+        _blendGroup!,
         this,
         _shape,
         glassContainsChild: _glassContainsChild,
@@ -227,15 +222,20 @@ class RenderLiquidGlass extends RenderProxyBox {
   }
 
   void _unregisterFromParentLayer() {
-    _glassLink?.unregisterShape(this);
+    _glassLink?.unregisterShape(
+      blendGroup,
+      this,
+    );
     _glassLink = null;
   }
 
-  void _updateGlassLink() {
+  void _updateGlassLink([LiquidGlassBlendGroup? oldBlendGroup]) {
     _glassLink?.updateShape(
+      blendGroup,
       this,
       _shape,
       glassContainsChild: _glassContainsChild,
+      oldBlendGroup: oldBlendGroup,
     );
   }
 
@@ -246,14 +246,17 @@ class RenderLiquidGlass extends RenderProxyBox {
     super.performLayout();
     // Notify parent layer when our layout changes
     _lastPath = shape.getOuterPath(Offset.zero & size);
-    _glassLink?.notifyShapeLayoutChanged(this);
+    _glassLink?.notifyShapeLayoutChanged(blendGroup, this);
   }
 
   Matrix4? lastTransform;
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    _glassLink?.notifyShapeLayoutChanged(this);
+    _glassLink?.notifyShapeLayoutChanged(
+      blendGroup,
+      this,
+    );
   }
 
   void paintFromLayer(PaintingContext context, Offset offset) {
@@ -262,5 +265,35 @@ class RenderLiquidGlass extends RenderProxyBox {
 
   Path getPath() {
     return _lastPath;
+  }
+}
+
+/// A group of liquid glass shapes that blend together.
+///
+/// Glass shapes below this widget will automatically be part of this layer.
+class LiquidGlassBlendGroup extends InheritedWidget {
+  /// Creates a new [LiquidGlassBlendGroup].
+  const LiquidGlassBlendGroup({
+    required super.child,
+    required this.settings,
+    this.blendPx = 20,
+    super.key,
+  });
+
+  final LiquidGlassSettings settings;
+
+  final double blendPx;
+
+  static LiquidGlassBlendGroup of(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<LiquidGlassBlendGroup>();
+    assert(scope != null, 'No LiquidGlassBlendGroup found in context');
+    return scope!;
+  }
+
+  @override
+  bool updateShouldNotify(covariant InheritedWidget oldWidget) {
+    return oldWidget is! LiquidGlassBlendGroup ||
+        oldWidget.settings != settings;
   }
 }

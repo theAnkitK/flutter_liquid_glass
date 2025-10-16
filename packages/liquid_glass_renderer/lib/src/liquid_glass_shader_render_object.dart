@@ -13,18 +13,22 @@ import 'package:meta/meta.dart';
 @internal
 abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   LiquidGlassShaderRenderObject({
-    required FragmentShader shader,
+    required this.blendShader,
+    required this.squircleShader,
+    required this.ovalShader,
+    required this.rRectShader,
     required GlassLink glassLink,
-    required LiquidGlassSettings settings,
     required double devicePixelRatio,
-  })  : _shader = shader,
-        _settings = settings,
-        _glassLink = glassLink,
+  })  : _glassLink = glassLink,
         _devicePixelRatio = devicePixelRatio {
     _glassLink.addListener(onLinkNotification);
     onLinkNotification();
-    setSettingsUniforms();
   }
+
+  final FragmentShader blendShader;
+  final FragmentShader squircleShader;
+  final FragmentShader ovalShader;
+  final FragmentShader rRectShader;
 
   GlassLink _glassLink;
 
@@ -44,24 +48,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  LiquidGlassSettings? _settings;
-  LiquidGlassSettings get settings => _settings!;
-  set settings(LiquidGlassSettings value) {
-    if (_settings == value) return;
-    _settings = value;
-    setSettingsUniforms();
-    markNeedsPaint();
-  }
-
-  FragmentShader? _shader;
-  FragmentShader get shader => _shader!;
-  set shader(FragmentShader value) {
-    if (_shader == value) return;
-    _shader = value;
-    setSettingsUniforms();
-    markNeedsPaint();
-  }
-
   double _devicePixelRatio;
   double get devicePixelRatio => _devicePixelRatio;
   set devicePixelRatio(double value) {
@@ -73,7 +59,10 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   List<(RenderLiquidGlass, RawShape)> _cachedShapes = [];
   List<(RenderLiquidGlass, RawShape)> get cachedShapes => _cachedShapes;
 
-  void setSettingsUniforms() {
+  void setSettingsUniforms(
+    FragmentShader shader,
+    LiquidGlassSettings settings,
+  ) {
     shader.setFloatUniforms(initialIndex: 2, (value) {
       value
         ..setColor(settings.glassColor)
@@ -81,7 +70,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
           settings.refractiveIndex,
           settings.chromaticAberration,
           settings.thickness,
-          settings.blend * devicePixelRatio,
+          0,
           settings.lightAngle,
           settings.lightIntensity,
           settings.ambientStrength,
@@ -108,7 +97,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       );
     }
 
-    shader.setFloatUniforms(initialIndex: 16, (value) {
+    blendShader.setFloatUniforms(initialIndex: 16, (value) {
       value.setFloat(shapeCount.toDouble());
       for (var i = 0; i < shapeCount; i++) {
         final shape = i < shapes.length ? shapes[i].$2 : RawShape.none;
@@ -129,13 +118,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     final shapes = updateShapes();
 
     if (shapes.isEmpty) {
-      super.paint(context, offset);
-      return;
-    }
-
-    if (settings.thickness <= 0) {
-      paintShapeContents(context, offset, shapes, glassContainsChild: true);
-      paintShapeContents(context, offset, shapes, glassContainsChild: false);
       super.paint(context, offset);
       return;
     }
