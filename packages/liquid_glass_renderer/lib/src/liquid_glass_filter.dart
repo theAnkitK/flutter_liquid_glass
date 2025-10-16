@@ -232,22 +232,22 @@ class _ShaderLayer extends OffsetLayer {
             childImage!,
             bounds.topLeft * devicePixelRatio,
             ui.Paint(),
+          )
+
+          // TODO maybe make faster
+          ..clipPath(
+            clipPath.transform(
+              Matrix4.diagonal3Values(devicePixelRatio, devicePixelRatio, 1)
+                  .storage,
+            ),
+          )
+
+          // Finally, draw liquid glass
+          ..drawRect(
+            (shapeBounds.topLeft * devicePixelRatio) &
+                (shapeBounds.size * devicePixelRatio),
+            ui.Paint()..shader = shader,
           );
-
-        // TODO maybe make faster
-        canvas.clipPath(
-          clipPath.transform(
-            Matrix4.diagonal3Values(devicePixelRatio, devicePixelRatio, 1)
-                .storage,
-          ),
-        );
-
-        // Finally, draw liquid glass
-        canvas.drawRect(
-          (shapeBounds.topLeft * devicePixelRatio) &
-              (shapeBounds.size * devicePixelRatio),
-          ui.Paint()..shader = shader,
-        );
       }
 
       final picture = recorder.endRecording();
