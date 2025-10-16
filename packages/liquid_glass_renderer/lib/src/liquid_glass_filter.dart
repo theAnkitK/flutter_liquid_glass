@@ -1,4 +1,3 @@
-import 'dart:isolate';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -112,7 +111,6 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
     PaintingContext context,
     Offset offset,
     List<(RenderLiquidGlass, RawShape)> shapes,
-    Path clipPath,
   ) {
     var shapeBounds = shapes.first.$2.topLeft & shapes.first.$2.size;
 
@@ -128,9 +126,7 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
       ..bounds = offset & size
       ..offset = offset
       ..shapeBounds = shapeBounds
-      ..clipPath = clipPath
-      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-      ..markNeedsAddToScene();
+      ..blur = settings.blur;
 
     paintShapeContents(
       context,
@@ -160,6 +156,14 @@ class _RenderLiquidGlassFilter extends LiquidGlassShaderRenderObject {
 /// with a captured child image
 class _ShaderLayer extends OffsetLayer {
   _ShaderLayer();
+
+  double _blur = 0;
+  double get blur => _blur;
+  set blur(double value) {
+    if (_blur == value) return;
+    _blur = value;
+    markNeedsAddToScene();
+  }
 
   List<(RenderLiquidGlass, RawShape)> _shapes = [];
   List<(RenderLiquidGlass, RawShape)> get shapes => _shapes;
@@ -211,8 +215,6 @@ class _ShaderLayer extends OffsetLayer {
 
   ui.Image? childImage;
 
-  ui.Image? blurredImage;
-
   @override
   void addToScene(ui.SceneBuilder builder) {
     _captureChildLayer();
@@ -221,29 +223,14 @@ class _ShaderLayer extends OffsetLayer {
     final canvas = ui.Canvas(recorder);
     engineLayer = builder.pushOffset(offset.dx, offset.dy);
     {
+      addChildrenToScene(builder);
       if (childImage != null) {
         shader
           ..setImageSampler(0, childImage!)
-          ..setImageSampler(1, blurredImage!)
           ..setFloat(0, bounds.width * devicePixelRatio)
           ..setFloat(1, bounds.height * devicePixelRatio);
         canvas
           ..scale(1 / devicePixelRatio)
-          ..drawImage(
-            childImage!,
-            bounds.topLeft * devicePixelRatio,
-            ui.Paint(),
-          )
-
-          // // TODO maybe make faster
-          // ..clipPath(
-          //   clipPath.transform(
-          //     Matrix4.diagonal3Values(devicePixelRatio, devicePixelRatio, 1)
-          //         .storage,
-          //   ),
-          // )
-
-          // Finally, draw liquid glass
           ..drawRect(
             (shapeBounds.topLeft * devicePixelRatio) &
                 (shapeBounds.size * devicePixelRatio),
@@ -259,12 +246,10 @@ class _ShaderLayer extends OffsetLayer {
 
   void _captureChildLayer() {
     childImage?.dispose();
-    blurredImage?.dispose();
-    childImage = _buildMaskImage();
-    blurredImage = _buildBlurredImage(childImage!);
+    childImage = _buildBlurredImage();
   }
 
-  ui.Image _buildMaskImage() {
+  ui.Image _buildBlurredImage() {
     final builder = ui.SceneBuilder();
 
     final transform = Matrix4.diagonal3Values(
@@ -273,7 +258,23 @@ class _ShaderLayer extends OffsetLayer {
       1,
     );
     builder.pushTransform(transform.storage);
+    if (blur > 0) {
+      // We only need to capture the area that will be blurred
+      builder.pushImageFilter(
+        ui.ImageFilter.blur(
+          sigmaX: blur,
+          sigmaY: blur,
+          tileMode: ui.TileMode.mirror,
+        ),
+      );
+    }
+
     addChildrenToScene(builder);
+
+    if (blur > 0) {
+      builder.pop();
+    }
+
     builder.pop();
 
     return builder.build().toImageSync(
@@ -282,29 +283,9 @@ class _ShaderLayer extends OffsetLayer {
         );
   }
 
-  ui.Image _buildBlurredImage(
-    ui.Image source,
-  ) {
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-
-    canvas.drawImage(
-      source,
-      Offset.zero,
-      ui.Paint()
-        ..imageFilter = ui.ImageFilter.blur(
-            sigmaX: 10, sigmaY: 10, tileMode: ui.TileMode.decal),
-    );
-
-    final picture = recorder.endRecording();
-    return picture.toImageSync((bounds.width * devicePixelRatio).ceil(),
-        (bounds.height * devicePixelRatio).ceil());
-  }
-
   @override
   void dispose() {
     childImage?.dispose();
-    blurredImage?.dispose();
     super.dispose();
   }
 }

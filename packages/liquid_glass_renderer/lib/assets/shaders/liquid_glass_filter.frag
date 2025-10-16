@@ -37,7 +37,6 @@ float uSaturation = uLightConfig.w;
 layout(location = 5) uniform float uNumShapes;             // numShapes  
 layout(location = 6) uniform float uShapeData[MAX_SHAPES * 6];
 
-uniform sampler2D uBackgroundTexture;
 uniform sampler2D uBlurredTexture;
 layout(location = 0) out vec4 fragColor;
 
@@ -59,7 +58,7 @@ void main() {
     // Early discard for pixels outside glass shapes to reduce overdraw
     if (foregroundAlpha < 0.01) {
         // Outside we sample the background texture
-        fragColor = texture(uBackgroundTexture, screenUV);
+        fragColor = vec4(0, 0, 0, 0);
         return;
     }
 

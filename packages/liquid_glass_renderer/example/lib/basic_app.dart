@@ -98,8 +98,7 @@ class BasicApp extends HookWidget {
                               ),
                             ),
                             LiquidStretch(
-                              child: FakeGlass(
-                                settings: settings,
+                              child: LiquidGlass.inLayer(
                                 shape: LiquidRoundedSuperellipse(
                                   borderRadius: Radius.circular(20),
                                 ),
@@ -117,8 +116,7 @@ class BasicApp extends HookWidget {
                           ],
                         ),
                         LiquidStretch(
-                          child: FakeGlass(
-                            settings: settings,
+                          child: LiquidGlass.inLayer(
                             shape: LiquidRoundedSuperellipse(
                               borderRadius: Radius.circular(20),
                             ),
@@ -139,46 +137,47 @@ class BasicApp extends HookWidget {
                   },
                 ),
               ),
-              SafeArea(
-                bottom: false,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: LiquidGlassBottomBar(
-                    extraButton: LiquidGlassBottomBarExtraButton(
-                      icon: CupertinoIcons.add_circled,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          CupertinoPageRoute(
-                            builder: (context) => CupertinoPageScaffold(
-                              child: SizedBox(),
-                              navigationBar: CupertinoNavigationBar.large(),
+              if (false)
+                SafeArea(
+                  bottom: false,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: LiquidGlassBottomBar(
+                      extraButton: LiquidGlassBottomBarExtraButton(
+                        icon: CupertinoIcons.add_circled,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            CupertinoPageRoute(
+                              builder: (context) => CupertinoPageScaffold(
+                                child: SizedBox(),
+                                navigationBar: CupertinoNavigationBar.large(),
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        },
+                        label: '',
+                      ),
+                      tabs: [
+                        LiquidGlassBottomBarTab(
+                          label: 'Home',
+                          icon: CupertinoIcons.home,
+                        ),
+                        LiquidGlassBottomBarTab(
+                          label: 'Profile',
+                          icon: CupertinoIcons.person,
+                        ),
+                        LiquidGlassBottomBarTab(
+                          label: 'Settings',
+                          icon: CupertinoIcons.settings,
+                        ),
+                      ],
+                      selectedIndex: tab.value,
+                      onTabSelected: (index) {
+                        tab.value = index;
                       },
-                      label: '',
                     ),
-                    tabs: [
-                      LiquidGlassBottomBarTab(
-                        label: 'Home',
-                        icon: CupertinoIcons.home,
-                      ),
-                      LiquidGlassBottomBarTab(
-                        label: 'Profile',
-                        icon: CupertinoIcons.person,
-                      ),
-                      LiquidGlassBottomBarTab(
-                        label: 'Settings',
-                        icon: CupertinoIcons.settings,
-                      ),
-                    ],
-                    selectedIndex: tab.value,
-                    onTabSelected: (index) {
-                      tab.value = index;
-                    },
                   ),
                 ),
-              ),
             ],
           ),
         ),
