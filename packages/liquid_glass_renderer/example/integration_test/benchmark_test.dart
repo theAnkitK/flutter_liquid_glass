@@ -53,13 +53,6 @@ void main() {
           duration,
         );
       }, reportKey: 'multi_test_with_glass_layer');
-
-      await binding.traceAction(() async {
-        await tester.pumpFrames(
-          const _MultiTestApp(withGlass: true, layer: RenderMode.layer),
-          duration,
-        );
-      }, reportKey: 'multi_test_with_glass_filter');
     });
   });
 }

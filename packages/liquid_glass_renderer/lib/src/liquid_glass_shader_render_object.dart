@@ -2,17 +2,24 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
+import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/raw_shapes.dart';
+import 'package:liquid_glass_renderer/src/logging.dart';
+import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:meta/meta.dart';
 
 @internal
 bool debugPaintLiquidGlassGeometry = false;
+
+enum _GeometryUpdateState {
+  maybeUpdate,
+  needsUpdate,
+  upToDate,
+}
 
 /// Base render object for liquid glass effects.
 ///
@@ -40,6 +47,8 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     _updateShaderSettings();
   }
 
+  static final logger = Logger(LgrLogNames.object);
+
   final FragmentShader renderShader;
   final FragmentShader geometryShader;
   final FragmentShader lightingShader;
@@ -50,9 +59,14 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   LiquidGlassSettings get settings => _settings!;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
-    final oldSettings = _settings;
+
+    if (value.requiresGeometryRebuild(_settings)) {
+      logger.finer('$hashCode geometry rebuild due to settings change.');
+      _invalidateGeometry(force: true);
+    }
+
     _settings = value;
-    _updateShaderSettings(oldSettings);
+    _updateShaderSettings();
     markNeedsPaint();
   }
 
@@ -77,11 +91,15 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   @override
   bool get alwaysNeedsCompositing => _geometryImage != null;
 
+  _GeometryUpdateState _geometryState = _GeometryUpdateState.needsUpdate;
+
   /// Pre-rendered geometry texture in screen space
   ui.Image? _geometryImage;
 
   /// Screen-space bounding box of all shapes (for geometry texture sizing)
   Rect? _cachedScreenShapesBounds;
+
+  Matrix4 _lastTransformToScreen = Matrix4.identity();
 
   /// Computed shape information
   List<ShapeInLayerInfo> _cachedShapes = [];
@@ -94,18 +112,17 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     _invalidateGeometry();
   }
 
-  void _invalidateGeometry() {
-    _geometryImage?.dispose();
-    _geometryImage = null;
-    _cachedScreenShapesBounds = null;
-    markNeedsCompositingBitsUpdate();
+  void _invalidateGeometry({bool force = false}) {
+    _geometryState = force
+        ? _GeometryUpdateState.needsUpdate
+        : _GeometryUpdateState.maybeUpdate;
     markNeedsPaint();
   }
 
   // === Shader Uniform Updates ===
 
-  void _updateShaderSettings([LiquidGlassSettings? oldSettings]) {
-    renderShader.setFloatUniforms(initialIndex: 6, (value) {
+  void _updateShaderSettings() {
+    renderShader.setFloatUniforms(initialIndex: 23, (value) {
       value
         ..setColor(settings.glassColor)
         ..setFloats([
@@ -132,18 +149,13 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
         settings.blend * devicePixelRatio,
       ]);
     });
-
-    if (oldSettings != null && oldSettings.thickness != settings.thickness) {
-      _invalidateGeometry();
-    }
   }
 
   /// Uploads shape data to geometry shader in screen space coordinates
   void _updateGeometryShaderShapes(Offset screenOrigin) {
     final shapes = _cachedShapes;
-    final shapeCount = shapes.length;
 
-    if (shapeCount > LiquidGlass.maxShapesPerLayer) {
+    if (shapes.length > LiquidGlass.maxShapesPerLayer) {
       throw UnsupportedError(
         'Only ${LiquidGlass.maxShapesPerLayer} shapes are supported at '
         'the moment!',
@@ -151,16 +163,17 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     }
 
     geometryShader.setFloatUniforms(initialIndex: 6, (value) {
-      value.setFloat(shapeCount.toDouble());
-      for (var i = 0; i < shapeCount; i++) {
-        final shape = i < shapes.length ? shapes[i].rawShape : RawShape.none;
+      value.setFloat(shapes.length.toDouble());
+      for (final shape in shapes) {
+        final center = shape.screenBounds.center;
+        final size = shape.screenBounds.size;
         value
-          ..setFloat(shape.type.index.toDouble())
-          ..setFloat((shape.center.dx - screenOrigin.dx) * devicePixelRatio)
-          ..setFloat((shape.center.dy - screenOrigin.dy) * devicePixelRatio)
-          ..setFloat(shape.size.width * devicePixelRatio)
-          ..setFloat(shape.size.height * devicePixelRatio)
-          ..setFloat(shape.cornerRadius * devicePixelRatio);
+          ..setFloat(shape.rawShapeType.shaderIndex)
+          ..setFloat((center.dx - screenOrigin.dx) * devicePixelRatio)
+          ..setFloat((center.dy - screenOrigin.dy) * devicePixelRatio)
+          ..setFloat(size.width * devicePixelRatio)
+          ..setFloat(size.height * devicePixelRatio)
+          ..setFloat(shape.rawCornerRadius * devicePixelRatio);
       }
     });
   }
@@ -170,9 +183,9 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
-    debugPaintLiquidGlassGeometry = false;
-    if (_geometryImage == null) {
-      _rebuildGeometry();
+    if (_geometryState == _GeometryUpdateState.needsUpdate ||
+        _geometryState == _GeometryUpdateState.maybeUpdate) {
+      _maybeRebuildGeometry();
     }
 
     final shapes = _cachedShapes;
@@ -218,26 +231,21 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
 
   void _paintGlassEffect(PaintingContext context, Offset offset) {
     if (_geometryImage case final geometryImage?) {
-      final geometryBounds = _getPixelAlignedGeometryBounds();
+      final geometryBounds = _cachedScreenShapesBounds ?? Rect.zero;
 
       renderShader
         ..setFloatUniforms((value) {
           value
             ..setSize(geometryBounds.size * devicePixelRatio)
             ..setOffset(geometryBounds.topLeft * devicePixelRatio)
-            ..setSize(geometryBounds.size * devicePixelRatio);
+            ..setSize(geometryBounds.size * devicePixelRatio)
+            ..setFloats(_getTransformSinceLastGeometryUpdate().storage)
+            ..setFloat(devicePixelRatio);
         })
         ..setImageSampler(1, geometryImage);
 
       paintLiquidGlass(context, offset, _cachedShapes, _cachedLayerBoundingBox);
     }
-  }
-
-  Rect _getPixelAlignedGeometryBounds() {
-    if (_cachedScreenShapesBounds case final bounds?) {
-      return bounds.inflate(settings.thickness * 2);
-    }
-    return Rect.zero;
   }
 
   /// Subclasses implement the actual glass rendering
@@ -261,7 +269,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
         context.pushTransform(
           true,
           offset,
-          shapeInLayer.transform,
+          shapeInLayer.shapeToLayer,
           shapeInLayer.renderObject.paintFromLayer,
         );
       }
@@ -271,22 +279,36 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   // === Geometry Texture Creation ===
 
   /// Rebuilds the geometry texture in screen space with pixel-perfect alignment
-  void _rebuildGeometry() {
-    _geometryImage?.dispose();
+  void _maybeRebuildGeometry() {
+    final (layerBounds, screenBounds, shapes, anyShapeChangedInLayer) =
+        _gatherShapeData();
 
-    final (layerBounds, screenBounds, shapes) = _gatherShapeData();
-    _cachedShapes = shapes;
-    _cachedLayerBoundingBox = layerBounds;
-    _cachedScreenShapesBounds = screenBounds;
+    if (_geometryState == _GeometryUpdateState.maybeUpdate &&
+        !anyShapeChangedInLayer &&
+        _geometryImage != null) {
+      logger.finer('$hashCode Skipping geometry rebuild.');
+      _geometryState = _GeometryUpdateState.upToDate;
 
-    if (shapes.isEmpty) {
-      _geometryImage = null;
       return;
     }
 
-    final geometryBounds = _snapToPixelBoundaries(
-      screenBounds.inflate(settings.thickness * 2),
-    );
+    logger.finer('$hashCode Rebuilding geometry');
+
+    _lastTransformToScreen = getTransformTo(null);
+    _geometryState = _GeometryUpdateState.upToDate;
+
+    _geometryImage?.dispose();
+    _geometryImage = null;
+
+    _cachedShapes = shapes;
+    _cachedLayerBoundingBox = layerBounds;
+    final geometryBounds = _cachedScreenShapesBounds =
+        screenBounds.inflate(settings.blend).snapToPixels(devicePixelRatio);
+
+    if (shapes.isEmpty) {
+      markNeedsCompositingBitsUpdate();
+      return;
+    }
 
     _updateGeometryShaderShapes(Offset.zero);
 
@@ -300,18 +322,26 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     markNeedsCompositingBitsUpdate();
   }
 
-  /// Snaps bounds to pixel boundaries to prevent sub-pixel flickering
-  Rect _snapToPixelBoundaries(Rect bounds) {
-    final left =
-        (bounds.left * devicePixelRatio).floorToDouble() / devicePixelRatio;
-    final top =
-        (bounds.top * devicePixelRatio).floorToDouble() / devicePixelRatio;
-    final right =
-        (bounds.right * devicePixelRatio).ceilToDouble() / devicePixelRatio;
-    final bottom =
-        (bounds.bottom * devicePixelRatio).ceilToDouble() / devicePixelRatio;
+  Matrix4 _getTransformSinceLastGeometryUpdate() {
+    // Get transforms in logical pixel space
+    final currentTransform = getTransformTo(null);
+    final inverseCurrent = Matrix4.inverted(currentTransform);
+    final deltaTransform = _lastTransformToScreen.clone()
+      ..multiply(inverseCurrent);
 
-    return Rect.fromLTRB(left, top, right, bottom);
+    // Scale the transform to physical pixel space
+    // We need to scale both the input and output by devicePixelRatio
+    // This is equivalent to: scale^-1 * deltaTransform * scale
+    // But since we're scaling uniformly, we only need to scale the translation
+    // components
+    final scaled = Matrix4.identity()..setFrom(deltaTransform);
+
+    // Scale translation components (last column, rows 0-2)
+    scaled[12] *= devicePixelRatio; // tx
+    scaled[13] *= devicePixelRatio; // ty
+    scaled[14] *= devicePixelRatio; // tz
+
+    return scaled;
   }
 
   (int, int) _getGeometryImageSize(Rect bounds) {
@@ -342,13 +372,17 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   // === Shape Data Collection ===
 
   /// Gathers all shapes and computes them in both layer and screen space
-  /// Returns (layerBounds, screenBounds, shapes)
-  (Rect, Rect, List<ShapeInLayerInfo>) _gatherShapeData() {
+  /// Returns (layerBounds, screenBounds, shapes, anyShapeChangedInLayer)
+  (Rect, Rect, List<ShapeInLayerInfo>, bool) _gatherShapeData() {
     final shapes = <ShapeInLayerInfo>[];
+    final cachedShapes = _cachedShapes;
+
+    var anyShapeChangedInLayer = false;
+
     Rect? layerBounds;
     Rect? screenBounds;
 
-    for (final entry in glassLink.shapeEntries) {
+    for (final (index, entry) in glassLink.shapeEntries.indexed) {
       final renderObject = entry.key;
       final shapeInfo = entry.value;
 
@@ -358,8 +392,18 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
         final shapeData = _computeShapeInfo(renderObject, shapeInfo);
         shapes.add(shapeData);
 
-        layerBounds = layerBounds?.expandToInclude(shapeData.boundsInLayer) ??
-            shapeData.boundsInLayer;
+        layerBounds = layerBounds?.expandToInclude(shapeData.layerBounds) ??
+            shapeData.layerBounds;
+
+        final existingShape =
+            cachedShapes.length > index ? cachedShapes[index] : null;
+
+        if (existingShape == null) {
+          anyShapeChangedInLayer = true;
+        } else if (existingShape.layerBounds != shapeData.layerBounds) {
+          anyShapeChangedInLayer = true;
+        }
+
         screenBounds = screenBounds?.expandToInclude(shapeData.screenBounds) ??
             shapeData.screenBounds;
       } catch (e) {
@@ -371,6 +415,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       layerBounds ?? Rect.zero,
       screenBounds ?? Rect.zero,
       shapes,
+      anyShapeChangedInLayer,
     );
   }
 
@@ -396,14 +441,15 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       renderObject: renderObject,
       shape: shapeInfo.shape,
       glassContainsChild: shapeInfo.glassContainsChild,
-      boundsInLayer: layerRect,
+      layerBounds: layerRect,
       screenBounds: screenRect,
-      transform: transformToLayer,
-      rawShape: RawShape.fromLiquidGlassShape(
-        shapeInfo.shape,
-        center: screenRect.center,
-        size: screenRect.size,
+      relativeLayerBounds: RelativeRect.fromLTRB(
+        layerRect.left / size.width,
+        layerRect.top / size.height,
+        1 - layerRect.right / size.width,
+        1 - layerRect.bottom / size.height,
       ),
+      shapeToLayer: transformToLayer,
     );
   }
 
@@ -416,34 +462,12 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   }
 }
 
-/// Shape data in both layer and screen coordinate spaces
-@internal
-class ShapeInLayerInfo {
-  ShapeInLayerInfo({
-    required this.renderObject,
-    required this.shape,
-    required this.glassContainsChild,
-    required this.boundsInLayer,
-    required this.screenBounds,
-    required this.transform,
-    required this.rawShape,
-  });
+extension on LiquidGlassSettings {
+  bool requiresGeometryRebuild(LiquidGlassSettings? other) {
+    if (other == null) return false;
 
-  final RenderLiquidGlass renderObject;
-
-  final LiquidShape shape;
-
-  final bool glassContainsChild;
-
-  /// Bounds in layer-local coordinates (for painting)
-  final Rect boundsInLayer;
-
-  /// Bounds in screen coordinates (for geometry texture)
-  final Rect screenBounds;
-
-  /// Transform from shape to layer (for painting contents)
-  final Matrix4 transform;
-
-  /// Shader-ready shape data (in screen coordinates)
-  final RawShape rawShape;
+    return thickness != other.thickness ||
+        refractiveIndex != other.refractiveIndex ||
+        blend != other.blend;
+  }
 }

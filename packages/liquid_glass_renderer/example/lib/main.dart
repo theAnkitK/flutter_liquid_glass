@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer_example/shared.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
+  LgrLogs.initAllLogs();
   basic_app.main();
 }
 
