@@ -89,23 +89,14 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   }
 
   @override
-  bool get alwaysNeedsCompositing => _geometryImage != null;
+  bool get alwaysNeedsCompositing => _cachedGeometry != null;
 
   _GeometryUpdateState _geometryState = _GeometryUpdateState.needsUpdate;
 
-  /// Pre-rendered geometry texture in screen space
-  ui.Image? _geometryImage;
-
-  /// Screen-space bounding box of all shapes (for geometry texture sizing)
-  Rect? _cachedScreenShapesBounds;
-
-  Matrix4 _lastTransformToScreen = Matrix4.identity();
+  _CachedGeometry? _cachedGeometry;
 
   /// Computed shape information
   List<ShapeInLayerInfo> _cachedShapes = [];
-
-  /// Layer-space bounding box (for painting)
-  Rect _cachedLayerBoundingBox = Rect.zero;
 
   @protected
   void onLinkNotification() {
@@ -122,7 +113,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   // === Shader Uniform Updates ===
 
   void _updateShaderSettings() {
-    renderShader.setFloatUniforms(initialIndex: 23, (value) {
+    renderShader.setFloatUniforms(initialIndex: 6, (value) {
       value
         ..setColor(settings.glassColor)
         ..setFloats([
@@ -220,31 +211,32 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   }
 
   void _debugPaintGeometry(PaintingContext context, Offset offset) {
-    if (_geometryImage case final geometryImage?) {
+    if (_cachedGeometry case final geometryImage?) {
       context.canvas
         ..save()
         ..scale(1 / devicePixelRatio)
-        ..drawImage(geometryImage, offset * devicePixelRatio, Paint())
+        ..drawImage(geometryImage.image, offset * devicePixelRatio, Paint())
         ..restore();
     }
   }
 
   void _paintGlassEffect(PaintingContext context, Offset offset) {
-    if (_geometryImage case final geometryImage?) {
-      final geometryBounds = _cachedScreenShapesBounds ?? Rect.zero;
+    if (_cachedGeometry case final geometry?) {
+      final geometryBounds = geometry.screenBounds;
 
       renderShader
         ..setFloatUniforms((value) {
           value
             ..setSize(geometryBounds.size * devicePixelRatio)
             ..setOffset(geometryBounds.topLeft * devicePixelRatio)
-            ..setSize(geometryBounds.size * devicePixelRatio)
-            ..setFloats(_getTransformSinceLastGeometryUpdate().storage)
-            ..setFloat(devicePixelRatio);
+            ..setSize(geometryBounds.size * devicePixelRatio);
         })
-        ..setImageSampler(1, geometryImage);
+        ..setImageSampler(
+          1,
+          geometry.imageToPaint(getTransformTo(null), devicePixelRatio),
+        );
 
-      paintLiquidGlass(context, offset, _cachedShapes, _cachedLayerBoundingBox);
+      paintLiquidGlass(context, offset, _cachedShapes, geometry.layerBounds);
     }
   }
 
@@ -280,12 +272,13 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
 
   /// Rebuilds the geometry texture in screen space with pixel-perfect alignment
   void _maybeRebuildGeometry() {
+    final cache = _cachedGeometry;
     final (layerBounds, screenBounds, shapes, anyShapeChangedInLayer) =
         _gatherShapeData();
 
     if (_geometryState == _GeometryUpdateState.maybeUpdate &&
         !anyShapeChangedInLayer &&
-        _geometryImage != null) {
+        cache != null) {
       logger.finer('$hashCode Skipping geometry rebuild.');
       _geometryState = _GeometryUpdateState.upToDate;
 
@@ -294,16 +287,12 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
 
     logger.finer('$hashCode Rebuilding geometry');
 
-    _lastTransformToScreen = getTransformTo(null);
+    final transform = getTransformTo(null);
     _geometryState = _GeometryUpdateState.upToDate;
 
-    _geometryImage?.dispose();
-    _geometryImage = null;
+    cache?.dispose();
 
     _cachedShapes = shapes;
-    _cachedLayerBoundingBox = layerBounds;
-    final geometryBounds = _cachedScreenShapesBounds =
-        screenBounds.inflate(settings.blend).snapToPixels(devicePixelRatio);
 
     if (shapes.isEmpty) {
       markNeedsCompositingBitsUpdate();
@@ -312,36 +301,22 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
 
     _updateGeometryShaderShapes(Offset.zero);
 
-    final (width, height) = _getGeometryImageSize(geometryBounds);
+    final (width, height) = _getGeometryImageSize(screenBounds);
 
     geometryShader
       ..setFloat(0, width.toDouble())
       ..setFloat(1, height.toDouble());
 
-    _geometryImage = _renderGeometryToImage(geometryBounds, width, height);
+    final image = _renderGeometryToImage(screenBounds, width, height);
+
+    _cachedGeometry = _CachedGeometry(
+      image: image,
+      screenBounds: screenBounds,
+      layerBounds: layerBounds,
+      layerTransform: transform,
+    );
+
     markNeedsCompositingBitsUpdate();
-  }
-
-  Matrix4 _getTransformSinceLastGeometryUpdate() {
-    // Get transforms in logical pixel space
-    final currentTransform = getTransformTo(null);
-    final inverseCurrent = Matrix4.inverted(currentTransform);
-    final deltaTransform = _lastTransformToScreen.clone()
-      ..multiply(inverseCurrent);
-
-    // Scale the transform to physical pixel space
-    // We need to scale both the input and output by devicePixelRatio
-    // This is equivalent to: scale^-1 * deltaTransform * scale
-    // But since we're scaling uniformly, we only need to scale the translation
-    // components
-    final scaled = Matrix4.identity()..setFrom(deltaTransform);
-
-    // Scale translation components (last column, rows 0-2)
-    scaled[12] *= devicePixelRatio; // tx
-    scaled[13] *= devicePixelRatio; // ty
-    scaled[14] *= devicePixelRatio; // tz
-
-    return scaled;
   }
 
   (int, int) _getGeometryImageSize(Rect bounds) {
@@ -412,8 +387,10 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     }
 
     return (
-      layerBounds ?? Rect.zero,
-      screenBounds ?? Rect.zero,
+      layerBounds?.inflate(settings.blend).snapToPixels(devicePixelRatio) ??
+          Rect.zero,
+      screenBounds?.inflate(settings.blend).snapToPixels(devicePixelRatio) ??
+          Rect.zero,
       shapes,
       anyShapeChangedInLayer,
     );
@@ -456,9 +433,89 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   @override
   @mustCallSuper
   void dispose() {
-    _geometryImage?.dispose();
+    _cachedGeometry?.dispose();
     glassLink.removeListener(onLinkNotification);
     super.dispose();
+  }
+}
+
+class _CachedGeometry {
+  _CachedGeometry({
+    required this.image,
+    required this.screenBounds,
+    required this.layerBounds,
+    required this.layerTransform,
+  });
+
+  final ui.Image image;
+
+  ui.Image? _transformedImage;
+
+  final Rect screenBounds;
+  final Rect layerBounds;
+  final Matrix4 layerTransform;
+
+  ui.Image imageToPaint(
+    Matrix4 layerTransform,
+    double devicePixelRatio,
+  ) {
+    _transformedImage?.dispose();
+    _transformedImage = null;
+
+    final transform = _getTransformSinceLastGeometryUpdate(
+      layerTransform,
+      devicePixelRatio,
+    );
+
+    if (transform.isIdentity()) {
+      return image;
+    }
+
+    final newScreenBounds = MatrixUtils.transformRect(
+      layerTransform,
+      screenBounds,
+    );
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final paint = ui.Paint();
+
+    canvas
+      ..transform(Matrix4.inverted(transform).storage)
+      ..drawImage(image, Offset.zero, paint);
+
+    final pic = recorder.endRecording();
+    return _transformedImage = pic.toImageSync(
+      (newScreenBounds.width * devicePixelRatio).ceil(),
+      (newScreenBounds.height * devicePixelRatio).ceil(),
+    );
+  }
+
+  Matrix4 _getTransformSinceLastGeometryUpdate(
+    Matrix4 currentTransform,
+    double devicePixelRatio,
+  ) {
+    // Get transforms in logical pixel space
+    final inverseCurrent = Matrix4.inverted(currentTransform);
+    final deltaTransform = layerTransform.clone()..multiply(inverseCurrent);
+
+    // Scale the transform to physical pixel space
+    // We need to scale both the input and output by devicePixelRatio
+    // This is equivalent to: scale^-1 * deltaTransform * scale
+    // But since we're scaling uniformly, we only need to scale the translation
+    // components
+    final scaled = Matrix4.identity()..setFrom(deltaTransform);
+
+    // Scale translation components (last column, rows 0-2)
+    scaled[12] *= devicePixelRatio; // tx
+    scaled[13] *= devicePixelRatio; // ty
+    scaled[14] *= devicePixelRatio; // tz
+
+    return scaled;
+  }
+
+  void dispose() {
+    image.dispose();
+    _transformedImage?.dispose();
   }
 }
 

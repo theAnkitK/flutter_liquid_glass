@@ -15,13 +15,10 @@ precision mediump float;
 
 layout(location = 0) uniform vec2 uSize;
 layout(location = 1) uniform vec4 uGeometryTextureRect;
-layout(location = 2) uniform mat4 uGeometryTransform;
-layout(location = 3) uniform float uDevicePixelRatio;
-
-layout(location = 4) uniform vec4 uGlassColor;
-layout(location = 5) uniform vec3 uOpticalProps;
-layout(location = 6) uniform vec3 uLightConfig;
-layout(location = 7) uniform vec2 uLightDirection;
+layout(location = 2) uniform vec4 uGlassColor;
+layout(location = 3) uniform vec3 uOpticalProps;
+layout(location = 4) uniform vec3 uLightConfig;
+layout(location = 5) uniform vec2 uLightDirection;
 
 
 float uRefractiveIndex = uOpticalProps.x;
@@ -37,21 +34,15 @@ uniform sampler2D uGeometryTexture;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    // FlutterFragCoord() returns logical pixels, but our geometry texture is in physical pixels
-    // So we need to scale by devicePixelRatio to work in physical pixel space
     vec2 fragCoord = FlutterFragCoord().xy;
-
-    vec2 geometryFragCoord = (uGeometryTransform * vec4(fragCoord, 0.0, 1.0)).xy ;
     
     vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
-    vec2 geometryUv = (geometryFragCoord - uGeometryTextureRect.xy) / uGeometryTextureRect.zw;
-        
-        
+    vec2 geometryUv = (fragCoord - uGeometryTextureRect.xy) / uGeometryTextureRect.zw;
+    
     #ifdef IMPELLER_TARGET_OPENGLES
         screenUV.y = 1.0 - screenUV.y;
         geometryUv.y = 1.0 - geometryUv.y;
     #endif
-
 
     if (geometryUv.x < 0.0 || geometryUv.x > 1.0 || geometryUv.y < 0.0 || geometryUv.y > 1.0) {
         fragColor = vec4(0.0);
