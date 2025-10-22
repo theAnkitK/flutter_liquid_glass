@@ -52,13 +52,9 @@ void main() {
         return;
     }
     
-    float height;
-    if (sd < -uThickness) {
-        height = uThickness;
-    } else {
-        float x = uThickness + sd;
-        height = sqrt(max(0.0, uThickness * uThickness - x * x));
-    }
+    float x = uThickness + sd;
+    float sqrtTerm = sqrt(max(0.0, uThickness * uThickness - x * x));
+    float height = mix(sqrtTerm, uThickness, float(sd < -uThickness));
     
     float baseHeight = uThickness * 8.0;
     vec3 incident = vec3(0.0, 0.0, -1.0);

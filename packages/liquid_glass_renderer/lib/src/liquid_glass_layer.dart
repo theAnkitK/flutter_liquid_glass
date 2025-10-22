@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:meta/meta.dart';
 
 /// Represents a layer of multiple [LiquidGlass] shapes that can flow together

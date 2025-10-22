@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:meta/meta.dart';
 
 /// An experimental way to use the liquid glass effect as a filter over [child],

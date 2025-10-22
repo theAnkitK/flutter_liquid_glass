@@ -7,5 +7,6 @@ export 'src/liquid_glass.dart' show LiquidGlass;
 export 'src/liquid_glass_layer.dart' show LiquidGlassLayer;
 export 'src/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/liquid_shape.dart';
+export 'src/logging.dart' show LgrLogs;
 export 'src/stretch.dart'
     show LiquidStretch, OffsetResistanceExtension, RawLiquidStretch;
