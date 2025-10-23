@@ -38,10 +38,10 @@ void main() {
     // So we need to scale by devicePixelRatio to work in physical pixel space
     vec2 fragCoord = FlutterFragCoord().xy;
 
-    
     vec2 screenUV = fragCoord / uSize;
-    vec2 geometryUv = (fragCoord - uGeometryTextureRect.xy) / uGeometryTextureRect.zw;
-        
+
+    vec2 geometryUvScale = vec2(1.0) / uGeometryTextureRect.zw; // Compiler may hoist this
+    vec2 geometryUv = (fragCoord - uGeometryTextureRect.xy) * geometryUvScale;
         
     #ifdef IMPELLER_TARGET_OPENGLES
         screenUV.y = 1.0 - screenUV.y;
