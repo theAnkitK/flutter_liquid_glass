@@ -1,3 +1,7 @@
+## 0.1.1-dev.25
+
+ - **FEAT**: add `fake` parameter to `LiquidGlass` to enable it to turn into `FakeGlass` dynamically (#103).
+
 ## 0.1.1-dev.24
 
  - **FIX**: import `@internal` from meta again (#102).
