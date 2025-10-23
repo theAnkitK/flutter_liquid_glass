@@ -123,7 +123,7 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
   // === Shader Uniform Updates ===
 
   void _updateShaderSettings() {
-    renderShader.setFloatUniforms(initialIndex: 23, (value) {
+    renderShader.setFloatUniforms(initialIndex: 6, (value) {
       value
         ..setColor(settings.glassColor)
         ..setFloats([
@@ -241,13 +241,10 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       final geometryBounds = _cachedScreenShapesBounds ?? Rect.zero;
 
       renderShader
-        ..setFloatUniforms((value) {
+        ..setFloatUniforms(initialIndex: 2, (value) {
           value
-            ..setSize(geometryBounds.size * devicePixelRatio)
             ..setOffset(geometryBounds.topLeft * devicePixelRatio)
-            ..setSize(geometryBounds.size * devicePixelRatio)
-            ..setFloats(_getTransformSinceLastGeometryUpdate().storage)
-            ..setFloat(devicePixelRatio);
+            ..setSize(geometryBounds.size * devicePixelRatio);
         })
         ..setImageSampler(1, geometryImage);
 
