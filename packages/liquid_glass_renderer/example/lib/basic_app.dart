@@ -115,7 +115,7 @@ class BasicApp extends HookWidget {
                           ],
                         ),
                         LiquidStretch(
-                          child: FakeGlass(
+                          child: FakeGlass.inLayer(
                             shape: LiquidRoundedSuperellipse(
                               borderRadius: Radius.circular(20),
                             ),

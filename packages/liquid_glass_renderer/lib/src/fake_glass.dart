@@ -16,9 +16,17 @@ class FakeGlass extends StatelessWidget {
   const FakeGlass({
     required this.shape,
     required this.child,
-    this.settings = const LiquidGlassSettings(),
+    LiquidGlassSettings this.settings = const LiquidGlassSettings(),
     super.key,
   });
+
+  /// Creates a new [FakeGlass] widget that takes settings from the nearest
+  /// ancestor [LiquidGlassLayer].
+  const FakeGlass.inLayer({
+    required this.shape,
+    required this.child,
+    super.key,
+  }) : settings = null;
 
   /// {@macro liquid_glass_renderer.LiquidGlass.shape}
   final LiquidShape shape;
@@ -27,7 +35,7 @@ class FakeGlass extends StatelessWidget {
   ///
   /// Some properties will not have any effect, such as `thickness` and
   /// `refractiveIndex`, since there is no actual refraction happening.
-  final LiquidGlassSettings settings;
+  final LiquidGlassSettings? settings;
 
   /// The child widget that will be displayed inside the glass.
   final Widget child;
@@ -38,7 +46,7 @@ class FakeGlass extends StatelessWidget {
       clipper: ShapeBorderClipper(shape: shape),
       child: RawFakeGlass(
         shape: shape,
-        settings: settings,
+        settings: settings ?? LiquidGlassSettings.of(context),
         child: GlassGlowLayer(
           child: child,
         ),
