@@ -45,19 +45,25 @@ class BasicApp extends HookWidget {
           children: [
             CustomScrollView(
               slivers: [
-                SliverList(
+                SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                  ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => AspectRatio(
-                      aspectRatio: 2,
-                      child: Image.network(
-                        'https://picsum.photos/1000/500?random=$index',
-                      ),
+                    (context, index) => Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.network(
+                            fit: BoxFit.cover,
+                            'https://picsum.photos/1000/500?random=$index',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
-
             Center(
               child: ListenableBuilder(
                 listenable: Listenable.merge([settingsNotifier, light]),
@@ -100,7 +106,7 @@ class BasicApp extends HookWidget {
                                     behavior: HitTestBehavior.opaque,
                                     child: SizedBox.square(
                                       dimension: 100,
-                                      child: Center(child: Text('FAKE')),
+                                      child: Center(child: Text('REAL')),
                                     ),
                                   ),
                                 ),
@@ -109,7 +115,7 @@ class BasicApp extends HookWidget {
                           ],
                         ),
                         LiquidStretch(
-                          child: LiquidGlass.inLayer(
+                          child: FakeGlass(
                             shape: LiquidRoundedSuperellipse(
                               borderRadius: Radius.circular(20),
                             ),

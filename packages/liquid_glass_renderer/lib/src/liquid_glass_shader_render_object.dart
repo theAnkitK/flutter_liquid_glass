@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'dart:ui';
 
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/glass_link.dart';
@@ -208,6 +209,12 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     }
 
     super.paint(context, offset);
+
+    // If we are still attached, schedule a repaint to pick up on transform
+    // changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (attached) markNeedsPaint();
+    });
   }
 
   void _paintShapesWithoutGlass(
