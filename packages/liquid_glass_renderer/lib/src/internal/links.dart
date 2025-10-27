@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 import 'package:meta/meta.dart';
 
@@ -17,10 +16,6 @@ import 'package:meta/meta.dart';
 class GlassLink with ChangeNotifier {
   /// Creates a new [GlassLink].
   GlassLink();
-
-  static GlassLink of(BuildContext context) {
-    return LiquidGlassScope.of(context).link;
-  }
 
   /// Information about a shape registered with this link.
   final Map<RenderLiquidGlass, GlassShapeInfo> _shapes = {};
@@ -121,9 +116,9 @@ class GlassShapeInfo {
 /// This replaces the ticker-based approach with an event-driven system
 /// similar to follow_the_leader's LeaderLink pattern.
 @internal
-class GeometryLink with ChangeNotifier {
-  /// Creates a new [GeometryLink].
-  GeometryLink();
+class BlendGroupLink with ChangeNotifier {
+  /// Creates a new [BlendGroupLink].
+  BlendGroupLink();
 
   /// Information about a shape registered with this link.
   final Map<RenderLiquidGlass, (LiquidShape shape, bool glassContainsChild)>

@@ -6,7 +6,6 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/links.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -32,7 +31,7 @@ enum LiquidGlassGeometryState {
 
 /// A base class for any render object that represents liquid glass geometry.
 ///
-/// This will paint to the screen normally, but use a [GeometryLink] to gather
+/// This will paint to the screen normally, but use a [BlendGroupLink] to gather
 /// shape information and generate a geometry matte using the provided
 /// [geometryShader].
 @internal
@@ -46,7 +45,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     required double devicePixelRatio,
   })  : _settings = settings,
         _devicePixelRatio = devicePixelRatio {
-    _updateShaderWithSettings(settings, devicePixelRatio);
+    updateShaderWithSettings(settings, devicePixelRatio);
   }
 
   /// The logger for liquid glass geometry.
@@ -71,7 +70,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     }
 
     _settings = value;
-    _updateShaderWithSettings(value, _devicePixelRatio);
+    updateShaderWithSettings(value, _devicePixelRatio);
     markNeedsPaint();
   }
 
@@ -85,20 +84,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     if (_devicePixelRatio == value) return;
     _devicePixelRatio = value;
     markGeometryNeedsUpdate(force: true);
-    _updateShaderWithSettings(settings, value);
-    markNeedsPaint();
-  }
-
-  GeometryLink? _link;
-
-  /// The link that provides shape information to this geometry.
-  GeometryLink get link => _link!;
-
-  set link(GeometryLink value) {
-    if (_link == value) return;
-    _link?.removeListener(_onLinkUpdate);
-    _link = value;
-    value.addListener(_onLinkUpdate);
+    updateShaderWithSettings(settings, value);
     markNeedsPaint();
   }
 
@@ -109,12 +95,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 
   /// The current geometry matte image.
   Geometry? geometry;
-
-  void _onLinkUpdate() {
-    // One of the shapes might have changed.
-    markGeometryNeedsUpdate();
-    markNeedsPaint();
-  }
 
   /// Marks the geometry as needing an update.
   ///
@@ -150,9 +130,28 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     super.dispose();
   }
 
+  /// Updates the shader with the current settings and device pixel ratio.
+  void updateShaderWithSettings(
+    LiquidGlassSettings settings,
+    double devicePixelRatio,
+  );
+
+  /// Uploads shape data to geometry shader in screen space coordinates
+  void updateGeometryShaderShapes(
+    List<ShapeGeometry> shapes,
+  );
+
+  /// Gathers all shapes and computes them in both layer and screen space
+  /// Returns (layerBounds, shapes, anyShapeChangedInLayer)
+  (
+    Rect bounds,
+    List<ShapeGeometry> geometries,
+    bool needsUpdate,
+  ) gatherShapeData();
+
   /// Should be called from within [paint] to maybe rebuild the [geometry].
   void _maybeRebuildGeometry() {
-    final (layerBounds, shapes, anyShapeChangedInLayer) = _gatherShapeData();
+    final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
 
     if (geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
         !anyShapeChangedInLayer &&
@@ -183,81 +182,11 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     notifyListeners();
   }
 
-  /// Gathers all shapes and computes them in both layer and screen space
-  /// Returns (layerBounds, shapes, anyShapeChangedInLayer)
-  (
-    Rect bounds,
-    List<ShapeGeometry> geometries,
-    bool needsUpdate,
-  ) _gatherShapeData() {
-    final shapes = <ShapeGeometry>[];
-    final cachedShapes = geometry?.shapes ?? [];
-
-    var anyShapeChangedInLayer =
-        cachedShapes.length != link.shapeEntries.length;
-
-    Rect? layerBounds;
-
-    for (final (
-          index,
-          MapEntry(
-            key: renderObject,
-            value: (shape, glassContainsChild),
-          ),
-        ) in link.shapeEntries.indexed) {
-      if (!renderObject.attached || !renderObject.hasSize) continue;
-
-      try {
-        final shapeData = _computeShapeInfo(
-          renderObject,
-          shape,
-          glassContainsChild,
-        );
-        shapes.add(shapeData);
-
-        layerBounds = layerBounds?.expandToInclude(shapeData.layerBounds) ??
-            shapeData.layerBounds;
-
-        final existingShape =
-            cachedShapes.length > index ? cachedShapes[index] : null;
-
-        if (existingShape == null) {
-          anyShapeChangedInLayer = true;
-        } else if (existingShape.layerBounds != shapeData.layerBounds) {
-          anyShapeChangedInLayer = true;
-        }
-      } catch (e) {
-        debugPrint('Failed to compute shape info: $e');
-      }
-    }
-
-    return (
-      layerBounds ?? Rect.zero,
-      shapes,
-      anyShapeChangedInLayer,
-    );
-  }
-
-  void _updateShaderWithSettings(
-    LiquidGlassSettings settings,
-    double devicePixelRatio,
-  ) {
-    geometryShader.setFloatUniforms(initialIndex: 2, (value) {
-      value.setFloats([
-        settings.refractiveIndex,
-        settings.effectiveChromaticAberration,
-        settings.effectiveThickness,
-        settings.blend * devicePixelRatio,
-      ]);
-    });
-  }
-
   Image _renderGeometryToImage(
     Rect geometryBounds,
     List<ShapeGeometry> shapes,
   ) {
-    final bounds =
-        geometryBounds.inflate(settings.blend).snapToPixels(devicePixelRatio);
+    final bounds = geometryBounds.snapToPixels(devicePixelRatio);
 
     final width = (bounds.width * devicePixelRatio).ceil();
     final height = (bounds.height * devicePixelRatio).ceil();
@@ -268,7 +197,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
         ..setFloat(height.toDouble());
     });
 
-    _updateGeometryShaderShapes(shapes);
+    updateGeometryShaderShapes(shapes);
 
     final recorder = PictureRecorder();
     final canvas = Canvas(recorder);
@@ -282,80 +211,17 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
       // snapping
       ..translate(-leftPixel, -topPixel)
       ..drawRect(
-        Rect.fromLTWH(leftPixel, topPixel, width.toDouble(), height.toDouble()),
+        Rect.fromLTWH(
+          leftPixel,
+          topPixel,
+          width.toDouble(),
+          height.toDouble(),
+        ),
         paint,
       );
 
     final pic = recorder.endRecording();
     return pic.toImageSync(width, height);
-  }
-
-  ShapeGeometry _computeShapeInfo(
-    RenderLiquidGlass renderObject,
-    LiquidShape shape,
-    bool glassContainsChild,
-  ) {
-    if (!hasSize) {
-      throw StateError(
-        'Cannot compute shape info for $renderObject because '
-        '$this LiquidGlassGeometry has no size yet.',
-      );
-    }
-
-    if (!renderObject.hasSize) {
-      throw StateError(
-        'Cannot compute shape info for LiquidGlass $renderObject because it '
-        'has no size yet.',
-      );
-    }
-
-    // Layer space: for painting shape contents with correct transforms
-    final transformToGeometry = renderObject.getTransformTo(this);
-    final layerRect = MatrixUtils.transformRect(
-      transformToGeometry,
-      Offset.zero & renderObject.size,
-    );
-
-    return ShapeGeometry(
-      renderObject: renderObject,
-      shape: shape,
-      glassContainsChild: glassContainsChild,
-      layerBounds: layerRect,
-      relativeLayerBounds: RelativeRect.fromLTRB(
-        layerRect.left / size.width,
-        layerRect.top / size.height,
-        1 - layerRect.right / size.width,
-        1 - layerRect.bottom / size.height,
-      ),
-      shapeToLayer: transformToGeometry,
-    );
-  }
-
-  /// Uploads shape data to geometry shader in screen space coordinates
-  void _updateGeometryShaderShapes(
-    List<ShapeGeometry> shapes,
-  ) {
-    if (shapes.length > LiquidGlass.maxShapesPerLayer) {
-      throw UnsupportedError(
-        'Only ${LiquidGlass.maxShapesPerLayer} shapes are supported at '
-        'the moment!',
-      );
-    }
-
-    geometryShader.setFloatUniforms(initialIndex: 6, (value) {
-      value.setFloat(shapes.length.toDouble());
-      for (final shape in shapes) {
-        final center = shape.layerBounds.center;
-        final size = shape.layerBounds.size;
-        value
-          ..setFloat(shape.rawShapeType.shaderIndex)
-          ..setFloat((center.dx) * devicePixelRatio)
-          ..setFloat((center.dy) * devicePixelRatio)
-          ..setFloat(size.width * devicePixelRatio)
-          ..setFloat(size.height * devicePixelRatio)
-          ..setFloat(shape.rawCornerRadius * devicePixelRatio);
-      }
-    });
   }
 }
 

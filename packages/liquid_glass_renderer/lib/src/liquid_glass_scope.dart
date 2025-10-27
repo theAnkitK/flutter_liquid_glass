@@ -9,14 +9,14 @@ class LiquidGlassScope extends InheritedWidget {
   const LiquidGlassScope({
     required this.settings,
     required super.child,
-    required this.link,
+    this.link,
     this.useFake = false,
     super.key,
   });
 
   final LiquidGlassSettings settings;
 
-  final GlassLink link;
+  final GlassLink? link;
 
   final bool useFake;
 

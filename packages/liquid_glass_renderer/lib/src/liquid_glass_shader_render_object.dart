@@ -159,33 +159,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
     });
   }
 
-  /// Uploads shape data to geometry shader in screen space coordinates
-  void _updateGeometryShaderShapes(Offset screenOrigin) {
-    final shapes = _cachedShapes;
-
-    if (shapes.length > LiquidGlass.maxShapesPerLayer) {
-      throw UnsupportedError(
-        'Only ${LiquidGlass.maxShapesPerLayer} shapes are supported at '
-        'the moment!',
-      );
-    }
-
-    geometryShader.setFloatUniforms(initialIndex: 6, (value) {
-      value.setFloat(shapes.length.toDouble());
-      for (final shape in shapes) {
-        final center = shape.screenBounds.center;
-        final size = shape.screenBounds.size;
-        value
-          ..setFloat(shape.rawShapeType.shaderIndex)
-          ..setFloat((center.dx - screenOrigin.dx) * devicePixelRatio)
-          ..setFloat((center.dy - screenOrigin.dy) * devicePixelRatio)
-          ..setFloat(size.width * devicePixelRatio)
-          ..setFloat(size.height * devicePixelRatio)
-          ..setFloat(shape.rawCornerRadius * devicePixelRatio);
-      }
-    });
-  }
-
   // === Main Rendering ===
 
   @override
@@ -315,8 +288,6 @@ abstract class LiquidGlassShaderRenderObject extends RenderProxyBox {
       markNeedsCompositingBitsUpdate();
       return;
     }
-
-    _updateGeometryShaderShapes(Offset.zero);
 
     final (width, height) = _getGeometryImageSize(geometryBounds);
 
