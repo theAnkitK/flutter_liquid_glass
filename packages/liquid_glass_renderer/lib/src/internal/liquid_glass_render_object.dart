@@ -121,9 +121,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     });
   }
 
-  @override
-  bool get isRepaintBoundary => true;
-
   ui.Rect _paintBounds = ui.Rect.zero;
 
   @override
@@ -134,8 +131,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
-    debugPaintLiquidGlassGeometry = false;
-
     if (link.shapeGeometries.isEmpty) {
       _geometryImage?.dispose();
       _geometryImage = null;

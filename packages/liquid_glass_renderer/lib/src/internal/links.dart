@@ -31,13 +31,13 @@ class GlassLink with ChangeNotifier {
       shape: shape,
       glassContainsChild: glassContainsChild,
     );
-    _notifyChange();
+    notifyListeners();
   }
 
   /// Unregister a shape from this link.
   void unregisterShape(RenderObject renderObject) {
     _shapes.remove(renderObject);
-    _notifyChange();
+    notifyListeners();
   }
 
   /// Update the shape properties for a registered render object.
@@ -51,14 +51,14 @@ class GlassLink with ChangeNotifier {
       info
         ..shape = shape
         ..glassContainsChild = glassContainsChild;
-      _notifyChange();
+      notifyListeners();
     }
   }
 
   /// Notify that a shape's layout has changed.
   void notifyShapeLayoutChanged(RenderObject renderObject) {
     if (_shapes.containsKey(renderObject)) {
-      _notifyChange();
+      notifyListeners();
     }
   }
 
@@ -67,27 +67,6 @@ class GlassLink with ChangeNotifier {
 
   Iterable<MapEntry<RenderLiquidGlass, GlassShapeInfo>> get shapeEntries =>
       _shapes.entries;
-
-  bool _postFrameCallbackScheduled = false;
-
-  void _notifyChange() {
-    if (WidgetsBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      // We're in the middle of a layout and paint phase. Notify listeners
-      // at the end of the frame.
-      if (!_postFrameCallbackScheduled) {
-        _postFrameCallbackScheduled = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _postFrameCallbackScheduled = false;
-          if (hasListeners) notifyListeners();
-        });
-      }
-      return;
-    }
-
-    // We're not in a layout/paint phase. Immediately notify listeners.
-    notifyListeners();
-  }
 
   @override
   void dispose() {
@@ -140,13 +119,13 @@ class BlendGroupLink with ChangeNotifier {
     bool glassContainsChild,
   ) {
     _shapes[renderObject] = (shape, glassContainsChild);
-    _notifyChange();
+    notifyListeners();
   }
 
   /// Unregister a shape from this link.
   void unregisterShape(RenderLiquidGlass renderObject) {
     _shapes.remove(renderObject);
-    _notifyChange();
+    notifyListeners();
   }
 
   /// Update the shape properties for a registered render object.
@@ -156,35 +135,14 @@ class BlendGroupLink with ChangeNotifier {
     bool glassContainsChild,
   ) {
     _shapes[renderObject] = (shape, glassContainsChild);
-    _notifyChange();
+    notifyListeners();
   }
 
   /// Notify that a shape's layout has changed.
   void notifyShapeLayoutChanged(RenderObject renderObject) {
     if (_shapes.containsKey(renderObject)) {
-      _notifyChange();
+      notifyListeners();
     }
-  }
-
-  bool _postFrameCallbackScheduled = false;
-
-  void _notifyChange() {
-    if (WidgetsBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      // We're in the middle of a layout and paint phase. Notify listeners
-      // at the end of the frame.
-      if (!_postFrameCallbackScheduled) {
-        _postFrameCallbackScheduled = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _postFrameCallbackScheduled = false;
-          if (hasListeners) notifyListeners();
-        });
-      }
-      return;
-    }
-
-    // We're not in a layout/paint phase. Immediately notify listeners.
-    notifyListeners();
   }
 
   @override

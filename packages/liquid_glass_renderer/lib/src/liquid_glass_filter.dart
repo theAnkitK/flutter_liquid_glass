@@ -27,6 +27,7 @@ class LiquidGlassFilter extends StatefulWidget {
   const LiquidGlassFilter({
     required this.child,
     this.settings = const LiquidGlassSettings(),
+    this.fake = false,
     super.key,
   });
 
@@ -34,6 +35,8 @@ class LiquidGlassFilter extends StatefulWidget {
   ///
   /// Defaults to a default instance of [LiquidGlassSettings].
   final LiquidGlassSettings settings;
+
+  final bool fake;
 
   /// The child that will be filtered with the liquid glass effect.
   final Widget child;
@@ -55,20 +58,24 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
   Widget build(BuildContext context) {
     return LiquidGlassScope(
       settings: widget.settings,
-      child: MultiShaderBuilder(
-        assetKeys: [
-          ShaderKeys.liquidGlassRender,
-        ],
-        (context, shaders, child) {
-          return _RawLiquidGlassFilter(
-            renderShader: shaders[0],
-            backdropKey: BackdropGroup.of(context)?.backdropKey,
-            settings: widget.settings,
-            link: _link,
-            child: child,
-          );
-        },
-        child: widget.child,
+      useFake: widget.fake,
+      child: InheritedGeometryRenderLink(
+        link: _link,
+        child: MultiShaderBuilder(
+          assetKeys: [
+            ShaderKeys.liquidGlassRender,
+          ],
+          (context, shaders, child) {
+            return _RawLiquidGlassFilter(
+              renderShader: shaders[0],
+              backdropKey: BackdropGroup.of(context)?.backdropKey,
+              settings: widget.settings,
+              link: _link,
+              child: child,
+            );
+          },
+          child: widget.child,
+        ),
       ),
     );
   }
@@ -140,7 +147,7 @@ class _RenderLiquidGlassFilter extends LiquidGlassRenderObject {
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlassGeometry, Geometry)> shapes,
+    List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> shapes,
     Rect boundingBox,
   ) {
     final layer = (this.layer ??= _ShaderLayer())
@@ -156,14 +163,6 @@ class _RenderLiquidGlassFilter extends LiquidGlassRenderObject {
       offset,
       shapes,
       insideGlass: true,
-    );
-    context.pushLayer(
-      layer,
-      (context, offset) {
-        // The child is the whole app in this case
-        context.paintChild(child!, offset);
-      },
-      offset,
     );
 
     paintShapeContents(

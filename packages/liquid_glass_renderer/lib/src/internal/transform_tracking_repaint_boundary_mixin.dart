@@ -88,9 +88,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer {
   @override
   void addToScene(ui.SceneBuilder builder) {
     final currentTransform = renderObject?.getTransformTo(null);
-    print('Adding to scene. Current transform: $currentTransform');
     if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
-      print('Transform changed $hashCode');
       onTransformChanged?.call();
       _lastTransform = currentTransform;
     }

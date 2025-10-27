@@ -51,8 +51,16 @@ class BasicApp extends HookWidget {
                     crossAxisCount: 2,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) =>
-                        Stack(children: [Positioned.fill(child: GridPaper())]),
+                    (context, index) => Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Image.network(
+                            fit: BoxFit.cover,
+                            'https://picsum.photos/500/500?random=$index',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
