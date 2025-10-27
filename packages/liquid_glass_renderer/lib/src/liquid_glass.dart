@@ -89,6 +89,29 @@ class LiquidGlass extends StatelessWidget {
         child: child,
       );
     }
+
+    // if (blendGroupLink == null) {
+    //   return LiquidGlassBlendGroup(
+    //     child: Builder(
+    //       builder: (context) => _RawLiquidGlass(
+    //         blendGroupLink: LiquidGlassBlendGroup.maybeOf(context),
+    //         shape: shape,
+    //         glassContainsChild: glassContainsChild,
+    //         child: ClipPath(
+    //           clipper: ShapeBorderClipper(shape: shape),
+    //           clipBehavior: clipBehavior,
+    //           child: Opacity(
+    //             opacity: LiquidGlassSettings.of(context).visibility.clamp(0, 1),
+    //             child: GlassGlowLayer(
+    //               child: child,
+    //             ),
+    //           ),
+    //         ),
+    //       ),
+    //     ),
+    //   );
+    // }
+
     return _RawLiquidGlass(
       blendGroupLink: LiquidGlassBlendGroup.maybeOf(context),
       shape: shape,
@@ -221,9 +244,12 @@ class RenderLiquidGlass extends RenderProxyBox {
     _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
+  Offset? lastOffset;
+
   @override
   void paint(PaintingContext context, Offset offset) {
-    //_blendGroupLink?.notifyShapeLayoutChanged(this);
+    lastOffset = offset;
+    _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
   void paintFromLayer(PaintingContext context, Offset offset) {
@@ -234,3 +260,4 @@ class RenderLiquidGlass extends RenderProxyBox {
     return _lastPath;
   }
 }
+//

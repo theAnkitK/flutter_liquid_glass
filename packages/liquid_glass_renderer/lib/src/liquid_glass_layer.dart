@@ -4,14 +4,13 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
-import 'package:liquid_glass_renderer/src/internal/links.dart';
+import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
+import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_shader_render_object.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
-import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:meta/meta.dart';
 
 /// Represents a layer of multiple [LiquidGlass] shapes that can flow together
@@ -97,13 +96,13 @@ class LiquidGlassLayer extends StatefulWidget {
 
 class _LiquidGlassLayerState extends State<LiquidGlassLayer>
     with SingleTickerProviderStateMixin {
-  late final _glassLink = GlassLink();
+  late final GeometryRenderLink _link = GeometryRenderLink();
 
   late final logger = Logger(LgrLogNames.layer);
 
   @override
   void dispose() {
-    _glassLink.dispose();
+    _link.dispose();
     super.dispose();
   }
 
@@ -121,32 +120,32 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
       return LiquidGlassScope(
         settings: widget.settings,
-        link: _glassLink,
         useFake: true,
-        child: BackdropGroup(child: widget.child),
+        child: InheritedGeometryRenderLink(
+          link: _link,
+          child: BackdropGroup(child: widget.child),
+        ),
       );
     }
 
     return RepaintBoundary(
       child: LiquidGlassScope(
         settings: widget.settings,
-        link: _glassLink,
-        child: MultiShaderBuilder(
-          assetKeys: [
-            ShaderKeys.blendedGeometry,
-            ShaderKeys.liquidGlassRender,
-          ],
-          (context, shaders, child) => _RawShapes(
-            geometryShader: shaders[0],
-            renderShader: shaders[1],
-            backdropKey: widget.useBackdropGroup
-                ? BackdropGroup.of(context)?.backdropKey
-                : null,
-            settings: widget.settings,
-            glassLink: _glassLink,
-            child: child!,
+        child: InheritedGeometryRenderLink(
+          link: _link,
+          child: ShaderBuilder(
+            assetKey: ShaderKeys.liquidGlassRender,
+            (context, shader, child) => _RawShapes(
+              renderShader: shader,
+              backdropKey: widget.useBackdropGroup
+                  ? BackdropGroup.of(context)?.backdropKey
+                  : null,
+              settings: widget.settings,
+              link: _link,
+              child: child!,
+            ),
+            child: widget.child,
           ),
-          child: widget.child,
         ),
       ),
     );
@@ -156,28 +155,25 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 class _RawShapes extends SingleChildRenderObjectWidget {
   const _RawShapes({
     required this.renderShader,
-    required this.geometryShader,
     required this.backdropKey,
     required this.settings,
     required Widget super.child,
-    required this.glassLink,
+    required this.link,
   });
 
-  final FragmentShader geometryShader;
   final FragmentShader renderShader;
   final BackdropKey? backdropKey;
   final LiquidGlassSettings settings;
-  final GlassLink glassLink;
+  final GeometryRenderLink link;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassLayer(
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       renderShader: renderShader,
-      geometryShader: geometryShader,
       backdropKey: backdropKey,
       settings: settings,
-      glassLink: glassLink,
+      link: link,
     );
   }
 
@@ -187,7 +183,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     RenderLiquidGlassLayer renderObject,
   ) {
     renderObject
-      ..glassLink = glassLink
+      ..link = link
       ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
       ..settings = settings
       ..backdropKey = backdropKey;
@@ -195,14 +191,13 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 }
 
 @internal
-class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
+class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
   RenderLiquidGlassLayer({
-    required super.geometryShader,
     required super.renderShader,
     required super.backdropKey,
     required super.devicePixelRatio,
     required super.settings,
-    required super.glassLink,
+    required super.link,
   });
 
   final _shaderHandle = LayerHandle<BackdropFilterLayer>();
@@ -211,10 +206,20 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
   final _clipRectLayerHandle = LayerHandle<ClipRectLayer>();
 
   @override
+  Size get desiredMatteSize => switch (owner?.rootNode) {
+        final RenderView rv => rv.size,
+        final RenderBox rb => rb.size,
+        _ => Size.zero,
+      };
+
+  @override
+  Matrix4 get matteTransform => getTransformTo(null);
+
+  @override
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<ShapeInLayerInfo> shapes,
+    List<(RenderLiquidGlassGeometry, Geometry)> shapes,
     Rect boundingBox,
   ) {
     if (!attached) return;
@@ -231,11 +236,11 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
 
     final clipPath = Path();
     for (final shape in shapes) {
-      if (!shape.renderObject.attached) continue;
-      final globalTransform = shape.renderObject.getTransformTo(this);
+      if (!shape.$1.attached) continue;
+      final globalTransform = shape.$1.getTransformTo(this);
 
       clipPath.addPath(
-        shape.renderObject.getPath(),
+        shape.$2.getPath(),
         offset,
         matrix4: globalTransform.storage,
       );
@@ -261,7 +266,7 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
                 context,
                 offset,
                 shapes,
-                glassContainsChild: true,
+                insideGlass: true,
               );
             },
             offset,
@@ -280,7 +285,7 @@ class RenderLiquidGlassLayer extends LiquidGlassShaderRenderObject {
               context,
               offset,
               shapes,
-              glassContainsChild: false,
+              insideGlass: false,
             );
           },
           offset,

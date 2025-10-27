@@ -56,7 +56,6 @@ class _LiquidGlassFilterState extends State<LiquidGlassFilter> {
   Widget build(BuildContext context) {
     return LiquidGlassScope(
       settings: widget.settings,
-      link: _glassLink,
       child: MultiShaderBuilder(
         assetKeys: [
           ShaderKeys.blendedGeometry,

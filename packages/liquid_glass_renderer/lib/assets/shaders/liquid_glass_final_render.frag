@@ -14,15 +14,11 @@ precision mediump float;
 #include "render.glsl"
 
 uniform vec2 uSize;
-uniform vec4 uGeometryTextureRect;
-uniform mat4 uGeometryTransform;
-uniform float uDevicePixelRatio;
 
 uniform vec4 uGlassColor;
 uniform vec3 uOpticalProps;
 uniform vec3 uLightConfig;
 uniform vec2 uLightDirection;
-
 
 float uRefractiveIndex = uOpticalProps.x;
 float uChromaticAberration = uOpticalProps.y;
@@ -40,19 +36,14 @@ void main() {
     // FlutterFragCoord() returns logical pixels, but our geometry texture is in physical pixels
     // So we need to scale by devicePixelRatio to work in physical pixel space
     vec2 fragCoord = FlutterFragCoord().xy;
-
-    vec2 geometryFragCoord = (uGeometryTransform * vec4(fragCoord, 0.0, 1.0)).xy ;
     
-    vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
-    vec2 geometryUv = (geometryFragCoord - uGeometryTextureRect.xy) / uGeometryTextureRect.zw;
-        
+    vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);        
         
     #ifdef IMPELLER_TARGET_OPENGLES
         screenUV.y = 1.0 - screenUV.y;
-        geometryUv.y = 1.0 - geometryUv.y;
     #endif
 
-    vec4 geometryData = texture(uGeometryTexture, geometryUv);
+    vec4 geometryData = texture(uGeometryTexture, screenUV);
     
     #if DEBUG_GEOMETRY
         fragColor = geometryData;

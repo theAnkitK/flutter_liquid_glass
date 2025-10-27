@@ -1,10 +1,10 @@
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart' hide internal;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/links.dart';
+import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/shape_in_layer.dart';
 import 'package:logging/logging.dart';
@@ -35,15 +35,16 @@ enum LiquidGlassGeometryState {
 /// shape information and generate a geometry matte using the provided
 /// [geometryShader].
 @internal
-abstract class RenderLiquidGlassGeometry extends RenderProxyBox
-    with ChangeNotifier {
+abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Creates a new [RenderLiquidGlassGeometry] with the given
   /// [geometryShader].
   RenderLiquidGlassGeometry({
+    required GeometryRenderLink renderLink,
     required this.geometryShader,
     required LiquidGlassSettings settings,
     required double devicePixelRatio,
-  })  : _settings = settings,
+  })  : _renderLink = renderLink,
+        _settings = settings,
         _devicePixelRatio = devicePixelRatio {
     updateShaderWithSettings(settings, devicePixelRatio);
   }
@@ -88,6 +89,15 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     markNeedsPaint();
   }
 
+  GeometryRenderLink? _renderLink;
+  GeometryRenderLink? get renderLink => _renderLink;
+  set renderLink(GeometryRenderLink? value) {
+    if (_renderLink == value) return;
+    _renderLink?.unregisterGeometry(this);
+    _renderLink = value;
+    value?.registerGeometry(this);
+  }
+
   /// The current state of the geometry.
   @visibleForTesting
   @protected
@@ -118,6 +128,20 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 
   @override
   @mustCallSuper
+  void attach(PipelineOwner owner) {
+    _renderLink?.registerGeometry(this);
+    super.attach(owner);
+  }
+
+  @override
+  @mustCallSuper
+  void detach() {
+    _renderLink?.unregisterGeometry(this);
+    super.detach();
+  }
+
+  @override
+  @mustCallSuper
   void paint(PaintingContext context, Offset offset) {
     _maybeRebuildGeometry();
     super.paint(context, offset);
@@ -141,6 +165,14 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     List<ShapeGeometry> shapes,
   );
 
+  /// Paints the contents of all shapes to the given [context] at the given
+  /// [offset].
+  void paintShapeContents(
+    PaintingContext context,
+    Offset offset, {
+    required bool insideGlass,
+  });
+
   /// Gathers all shapes and computes them in both layer and screen space
   /// Returns (layerBounds, shapes, anyShapeChangedInLayer)
   (
@@ -151,6 +183,11 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 
   /// Should be called from within [paint] to maybe rebuild the [geometry].
   void _maybeRebuildGeometry() {
+    if (geometryState == LiquidGlassGeometryState.updated) {
+      //      logger.finest('$hashCode Geometry is up to date.');
+      return;
+    }
+
     final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
 
     if (geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
@@ -165,6 +202,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 
     geometry?.dispose();
     geometry = null;
+    geometryState = LiquidGlassGeometryState.updated;
 
     if (shapes.isEmpty) {
       return;
@@ -172,7 +210,8 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 
     final image = _buildGeometryPicture(layerBounds, shapes);
 
-    geometry = Geometry(
+    // Set the new geometry
+    final newGeo = geometry = Geometry(
       matte: image,
       geometryBounds: layerBounds,
       matteBounds: Rect.fromLTWH(
@@ -185,7 +224,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     );
 
     // We have updated the geometry.
-    notifyListeners();
+    _renderLink?.updateGeometry(this, newGeo);
   }
 
   Picture _buildGeometryPicture(
@@ -253,6 +292,14 @@ class Geometry {
   final Rect matteBounds;
 
   final List<ShapeGeometry> shapes;
+
+  Path getPath() {
+    final path = Path();
+    for (final shape in shapes) {
+      path.addPath(shape.renderObject.getPath(), shape.layerBounds.topLeft);
+    }
+    return path;
+  }
 
   /// Disposes of the resources used by the geometry.
   @mustCallSuper

@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/links.dart';
+import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
@@ -54,18 +55,19 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
-    return ShaderBuilder(
-      (context, shader, child) => _RawLiquidGlassBlendGroup(
-        shader: shader,
-        link: _geometryLink,
-        settings: LiquidGlassScope.of(context).settings,
-        child: _InheritedLiquidGlassBlendGroup(
+    return _InheritedLiquidGlassBlendGroup(
+      link: _geometryLink,
+      child: ShaderBuilder(
+        (context, shader, child) => _RawLiquidGlassBlendGroup(
+          shader: shader,
           link: _geometryLink,
-          child: child!,
+          renderLink: InheritedGeometryRenderLink.of(context)!,
+          settings: LiquidGlassScope.of(context).settings,
+          child: child,
         ),
+        assetKey: ShaderKeys.blendedGeometry,
+        child: widget.child,
       ),
-      assetKey: ShaderKeys.blendedGeometry,
-      child: widget.child,
     );
   }
 }
@@ -93,18 +95,21 @@ class _InheritedLiquidGlassBlendGroup extends InheritedWidget {
 class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
   const _RawLiquidGlassBlendGroup({
     required this.shader,
+    required this.renderLink,
     required this.link,
     required this.settings,
     super.child,
   });
 
   final FragmentShader shader;
+  final GeometryRenderLink renderLink;
   final BlendGroupLink link;
   final LiquidGlassSettings settings;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassBlendGroup(
+      renderLink: renderLink,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       geometryShader: shader,
       settings: settings,
@@ -128,11 +133,14 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
 @internal
 class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   RenderLiquidGlassBlendGroup({
+    required super.renderLink,
     required super.devicePixelRatio,
     required super.geometryShader,
     required super.settings,
     required BlendGroupLink link,
-  }) : _link = link;
+  }) : _link = link {
+    link.addListener(_onLinkUpdate);
+  }
 
   BlendGroupLink _link;
 
@@ -243,6 +251,26 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       shapes,
       anyShapeChangedInLayer,
     );
+  }
+
+  @override
+  void paintShapeContents(
+    PaintingContext context,
+    Offset offset, {
+    required bool insideGlass,
+  }) {
+    for (final shapeEntry in link.shapeEntries) {
+      final renderObject = shapeEntry.key;
+      if (!renderObject.attached ||
+          renderObject.glassContainsChild != insideGlass) {
+        continue;
+      }
+
+      renderObject.paintFromLayer(
+        context,
+        Offset.zero,
+      );
+    }
   }
 
   ShapeGeometry _computeShapeInfo(

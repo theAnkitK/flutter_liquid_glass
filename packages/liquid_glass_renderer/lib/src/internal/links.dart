@@ -156,6 +156,7 @@ class BlendGroupLink with ChangeNotifier {
     bool glassContainsChild,
   ) {
     _shapes[renderObject] = (shape, glassContainsChild);
+    _notifyChange();
   }
 
   /// Notify that a shape's layout has changed.

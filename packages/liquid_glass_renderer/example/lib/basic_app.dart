@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/shared.dart';
-import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -86,39 +85,21 @@ class BasicApp extends HookWidget {
                   return LiquidGlassLayer(
                     fake: fake.value,
                     settings: settings.copyWith(lightAngle: light.value),
-                    child: Column(
-                      spacing: 16,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: 16,
-                          children: [
-                            LiquidStretch(
-                              child: LiquidGlass.inLayer(
-                                shape: LiquidRoundedSuperellipse(
-                                  borderRadius: Radius.circular(20),
-                                ),
-                                child: GlassGlow(
-                                  child: SizedBox.square(
-                                    dimension: 100,
-                                    child: Center(
-                                      child: fake.value
-                                          ? Text('FAKE')
-                                          : Text('REAL'),
-                                    ),
+                    child: LiquidGlassBlendGroup(
+                      child: Column(
+                        spacing: 16,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: 16,
+                            children: [
+                              LiquidStretch(
+                                child: LiquidGlass.blended(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
                                   ),
-                                ),
-                              ),
-                            ),
-                            LiquidStretch(
-                              child: LiquidGlass.inLayer(
-                                shape: LiquidRoundedSuperellipse(
-                                  borderRadius: Radius.circular(20),
-                                ),
-                                child: GlassGlow(
-                                  child: GestureDetector(
-                                    behavior: HitTestBehavior.opaque,
+                                  child: GlassGlow(
                                     child: SizedBox.square(
                                       dimension: 100,
                                       child: Center(
@@ -130,77 +111,97 @@ class BasicApp extends HookWidget {
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        LiquidStretch(
-                          child: LiquidGlass.inLayer(
-                            shape: LiquidRoundedSuperellipse(
-                              borderRadius: Radius.circular(20),
-                            ),
-                            child: GlassGlow(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                child: SizedBox(
-                                  width: 400,
-                                  height: 64,
-                                  child: Center(
-                                    child: fake.value
-                                        ? Text('FAKE')
-                                        : Text('REAL'),
+                              LiquidStretch(
+                                child: LiquidGlass.blended(
+                                  shape: LiquidRoundedSuperellipse(
+                                    borderRadius: Radius.circular(20),
+                                  ),
+                                  child: GlassGlow(
+                                    child: GestureDetector(
+                                      behavior: HitTestBehavior.opaque,
+                                      child: SizedBox.square(
+                                        dimension: 100,
+                                        child: Center(
+                                          child: fake.value
+                                              ? Text('FAKE')
+                                              : Text('REAL'),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          LiquidStretch(
+                            child: LiquidGlass.blended(
+                              shape: LiquidRoundedSuperellipse(
+                                borderRadius: Radius.circular(20),
+                              ),
+                              child: GlassGlow(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  child: SizedBox(
+                                    width: 400,
+                                    height: 64,
+                                    child: Center(
+                                      child: fake.value
+                                          ? Text('FAKE')
+                                          : Text('REAL'),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
-            SafeArea(
-              bottom: false,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: LiquidGlassBottomBar(
-                  fake: fake.value,
-                  extraButton: LiquidGlassBottomBarExtraButton(
-                    icon: CupertinoIcons.add_circled,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        CupertinoPageRoute(
-                          builder: (context) => CupertinoPageScaffold(
-                            child: SizedBox(),
-                            navigationBar: CupertinoNavigationBar.large(),
-                          ),
-                        ),
-                      );
-                    },
-                    label: '',
-                  ),
-                  tabs: [
-                    LiquidGlassBottomBarTab(
-                      label: 'Home',
-                      icon: CupertinoIcons.home,
-                    ),
-                    LiquidGlassBottomBarTab(
-                      label: 'Profile',
-                      icon: CupertinoIcons.person,
-                    ),
-                    LiquidGlassBottomBarTab(
-                      label: 'Settings',
-                      icon: CupertinoIcons.settings,
-                    ),
-                  ],
-                  selectedIndex: tab.value,
-                  onTabSelected: (index) {
-                    tab.value = index;
-                  },
-                ),
-              ),
-            ),
+            // SafeArea(
+            //   bottom: false,
+            //   child: Align(
+            //     alignment: Alignment.bottomCenter,
+            //     child: LiquidGlassBottomBar(
+            //       fake: fake.value,
+            //       extraButton: LiquidGlassBottomBarExtraButton(
+            //         icon: CupertinoIcons.add_circled,
+            //         onTap: () {
+            //           Navigator.of(context).push(
+            //             CupertinoPageRoute(
+            //               builder: (context) => CupertinoPageScaffold(
+            //                 child: SizedBox(),
+            //                 navigationBar: CupertinoNavigationBar.large(),
+            //               ),
+            //             ),
+            //           );
+            //         },
+            //         label: '',
+            //       ),
+            //       tabs: [
+            //         LiquidGlassBottomBarTab(
+            //           label: 'Home',
+            //           icon: CupertinoIcons.home,
+            //         ),
+            //         LiquidGlassBottomBarTab(
+            //           label: 'Profile',
+            //           icon: CupertinoIcons.person,
+            //         ),
+            //         LiquidGlassBottomBarTab(
+            //           label: 'Settings',
+            //           icon: CupertinoIcons.settings,
+            //         ),
+            //       ],
+            //       selectedIndex: tab.value,
+            //       onTabSelected: (index) {
+            //         tab.value = index;
+            //       },
+            //     ),
+            //   ),
+            // ),
           ],
         ),
       ),
