@@ -181,6 +181,20 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     bool needsUpdate,
   ) gatherShapeData();
 
+  Path getPath(
+    List<ShapeGeometry> geometries,
+  ) {
+    final path = Path();
+    for (final shape in geometries) {
+      path.addPath(
+        shape.renderObject.getPath(),
+        Offset.zero,
+        matrix4: shape.renderObject.getTransformTo(this).storage,
+      );
+    }
+    return path;
+  }
+
   /// Should be called from within [paint] to maybe rebuild the [geometry].
   void _maybeRebuildGeometry() {
     if (geometryState == LiquidGlassGeometryState.updated) {
@@ -223,6 +237,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
         snappedBounds.height * devicePixelRatio,
       ).snapToPixels(1),
       shapes: shapes,
+      path: getPath(shapes),
     );
 
     // We have updated the geometry.
@@ -281,6 +296,7 @@ class Geometry {
     required this.matteBounds,
     required this.bounds,
     required this.shapes,
+    required this.path,
   });
 
   /// The matte image representing the geometry.
@@ -295,16 +311,7 @@ class Geometry {
 
   final List<ShapeGeometry> shapes;
 
-  Path getPath(Matrix4 transform) {
-    final path = Path();
-    for (final shape in shapes) {
-      path.addPath(
-        shape.renderObject.getPath(),
-        shape.layerBounds.topLeft,
-      );
-    }
-    return path;
-  }
+  final Path path;
 
   /// Disposes of the resources used by the geometry.
   @mustCallSuper

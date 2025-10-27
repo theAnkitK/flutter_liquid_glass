@@ -227,7 +227,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
           MapEntry(
             key: renderObject,
             value: (shape, glassContainsChild),
-          ),
+          )
         ) in link.shapeEntries.indexed) {
       if (!renderObject.attached || !renderObject.hasSize) continue;
 
@@ -314,13 +314,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       shape: shape,
       glassContainsChild: glassContainsChild,
       layerBounds: layerRect,
-      relativeLayerBounds: RelativeRect.fromLTRB(
-        layerRect.left / size.width,
-        layerRect.top / size.height,
-        1 - layerRect.right / size.width,
-        1 - layerRect.bottom / size.height,
-      ),
-      shapeToLayer: transformToGeometry,
     );
   }
 }

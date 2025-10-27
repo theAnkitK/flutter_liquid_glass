@@ -41,8 +41,6 @@ class ShapeGeometry extends Equatable {
     required this.shape,
     required this.glassContainsChild,
     required this.layerBounds,
-    required this.relativeLayerBounds,
-    required this.shapeToLayer,
   })  : rawCornerRadius = _getRadiusFromGlassShape(shape),
         rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
 
@@ -74,19 +72,12 @@ class ShapeGeometry extends Equatable {
   // TODO rename
   final Rect layerBounds;
 
-  /// Bounds in layer-relative coordinates
-  final RelativeRect relativeLayerBounds;
-
-  /// Transform from shape to layer (for painting contents)
-  final Matrix4 shapeToLayer;
-
   @override
   List<Object?> get props => [
         renderObject,
         shape,
         glassContainsChild,
         layerBounds,
-        shapeToLayer,
       ];
 }
 

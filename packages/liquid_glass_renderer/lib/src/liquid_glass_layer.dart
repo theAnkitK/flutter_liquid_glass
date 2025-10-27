@@ -237,11 +237,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
     final clipPath = Path();
     for (final geometry in shapes) {
       if (!geometry.$1.attached) continue;
-      final globalTransform = geometry.$1.getTransformTo(this);
+
       clipPath.addPath(
-        geometry.$2.getPath(globalTransform),
+        geometry.$2.path,
         Offset.zero,
-        matrix4: globalTransform.storage,
+        matrix4: geometry.$1.getTransformTo(this).storage,
       );
     }
 
