@@ -142,7 +142,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       return;
     }
 
-    final shapesWithGeometry = <(RenderLiquidGlassGeometry, Geometry)>[];
+    final shapesWithGeometry =
+        <(RenderLiquidGlassGeometry, Geometry, Matrix4)>[];
 
     Rect? boundingBox;
 
@@ -152,7 +153,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
       final transform = geometryRo.getTransformTo(this);
 
-      shapesWithGeometry.add((geometryRo, geometry));
+      shapesWithGeometry.add((geometryRo, geometry, transform));
 
       final geoBounds = MatrixUtils.transformRect(
         transform,
@@ -183,14 +184,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
 
     if (_needsGeometryUpdate || _geometryImage == null) {
-      final geometries = link.shapeGeometries.entries
-          .where((entry) => entry.value != null)
-          .map((entry) => (entry.key, entry.value!))
-          .toList();
-
       _geometryImage?.dispose();
       _needsGeometryUpdate = false;
-      _geometryImage = _buildGeometryImage(geometries);
+      _geometryImage = _buildGeometryImage(shapesWithGeometry);
     }
 
     if (debugPaintLiquidGlassGeometry) {
@@ -227,7 +223,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlassGeometry, Geometry)> shapes,
+    List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> shapes,
     Rect boundingBox,
   );
 
@@ -235,10 +231,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   void paintShapeContents(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlassGeometry, Geometry)> shapes, {
+    List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> shapes, {
     required bool insideGlass,
   }) {
-    for (final (geometryRenderObject, _) in shapes) {
+    for (final (geometryRenderObject, _, _) in shapes) {
       geometryRenderObject.paintShapeContents(
         this,
         context,
@@ -275,7 +271,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   ui.Image _buildGeometryImage(
-    List<(RenderLiquidGlassGeometry, Geometry)> geometries,
+    List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> geometries,
   ) {
     final size = desiredMatteSize * devicePixelRatio;
     logger.fine('$hashCode Building geometry image with '
@@ -284,11 +280,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
     final canvas = Canvas(recorder);
 
-    for (final (renderObject, geometry) in geometries) {
+    for (final (_, geometry, transform) in geometries) {
       canvas
         ..save()
         ..scale(devicePixelRatio)
-        ..transform(renderObject.getTransformTo(this).storage)
+        ..transform(transform.storage)
         ..transform(matteTransform.storage)
         ..scale(1 / devicePixelRatio)
         ..translate(

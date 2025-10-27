@@ -303,7 +303,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       );
     }
 
-    // Layer space: for painting shape contents with correct transforms
+    // We remember the shapes transform to this blend group.
     final transformToGeometry = renderObject.getTransformTo(this);
 
     final blendGroupRect = MatrixUtils.transformRect(
@@ -316,6 +316,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       shape: shape,
       glassContainsChild: glassContainsChild,
       shapeBounds: blendGroupRect,
+      shapeToGeometry: transformToGeometry,
     );
   }
 }

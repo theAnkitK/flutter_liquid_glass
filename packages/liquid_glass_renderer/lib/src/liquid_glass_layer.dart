@@ -219,7 +219,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
   void paintLiquidGlass(
     PaintingContext context,
     Offset offset,
-    List<(RenderLiquidGlassGeometry, Geometry)> shapes,
+    List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> shapes,
     Rect boundingBox,
   ) {
     if (!attached) return;
@@ -241,7 +241,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
       clipPath.addPath(
         geometry.$2.path,
         Offset.zero,
-        matrix4: geometry.$1.getTransformTo(this).storage,
+        matrix4: geometry.$3.storage,
       );
     }
     _clipPathLayerHandle.layer = context

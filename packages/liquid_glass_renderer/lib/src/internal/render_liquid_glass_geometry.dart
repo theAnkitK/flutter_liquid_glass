@@ -190,7 +190,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       path.addPath(
         shape.renderObject.getPath(),
         Offset.zero,
-        matrix4: shape.renderObject.getTransformTo(this).storage,
+        matrix4: shape.shapeToGeometry?.storage,
       );
     }
     return path;
