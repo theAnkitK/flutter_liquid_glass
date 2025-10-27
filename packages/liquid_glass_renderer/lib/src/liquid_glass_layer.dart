@@ -273,7 +273,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
       offset,
       boundingBox,
       (context, offset) {
-        context.canvas.drawPaint(Paint()..color = Colors.red);
         context.pushLayer(
           shaderLayer,
           (context, offset) {

@@ -572,6 +572,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                       alignment: alignment,
                       thickness: thickness,
                       child: LiquidGlassLayer(
+                        fake: widget.fake,
                         settings: LiquidGlassSettings(
                           visibility: thickness,
                           glassColor: Color.from(
