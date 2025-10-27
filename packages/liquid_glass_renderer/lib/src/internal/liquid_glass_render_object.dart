@@ -118,10 +118,16 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     });
   }
 
+  Rect? _lastGlobalRect;
+
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
-    debugPaintLiquidGlassGeometry = false;
+    final rect = localToGlobal(Offset.zero) & size;
+    if (_lastGlobalRect != rect) {
+      _needsGeometryUpdate = true;
+      _lastGlobalRect = rect;
+    }
     if (link.shapeGeometries.isEmpty) {
       _geometryImage?.dispose();
       _geometryImage = null;
@@ -176,6 +182,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       if (_geometryImage == null) {
         markNeedsCompositingBitsUpdate();
       }
+      _needsGeometryUpdate = false;
       _geometryImage = _buildGeometryImage(geometries);
     }
 
@@ -289,8 +296,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         ..save()
         ..transform(renderObject.getTransformTo(this).storage)
         ..translate(
-          geometry.bounds.topLeft.dx * devicePixelRatio,
-          geometry.bounds.topLeft.dy * devicePixelRatio,
+          geometry.matteBounds.topLeft.dx,
+          geometry.matteBounds.topLeft.dy,
         )
         ..drawPicture(geometry.matte)
         ..restore();

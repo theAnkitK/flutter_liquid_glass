@@ -193,7 +193,3 @@ class BlendGroupLink with ChangeNotifier {
     super.dispose();
   }
 }
-
-class GlassRenderLink with ChangeNotifier {
-  GlassRenderLink();
-}

@@ -49,10 +49,8 @@ class FakeGlass extends StatelessWidget {
         this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
-      child: RawFakeGlass(
+      child: Material(
         shape: shape,
-        settings: settings,
-        backdropKey: backdropKey,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(

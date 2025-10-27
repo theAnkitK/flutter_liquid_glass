@@ -249,7 +249,6 @@ class RenderLiquidGlass extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Noop, instead we [paintFromLayer]
     _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
