@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_positional_boolean_parameters
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -111,4 +113,86 @@ class GlassShapeInfo {
 
   /// Whether the glass contains the child.
   bool glassContainsChild;
+}
+
+/// A link that connects liquid glass shapes to their parent layer for
+/// efficient communication of position, size, and transform changes.
+///
+/// This replaces the ticker-based approach with an event-driven system
+/// similar to follow_the_leader's LeaderLink pattern.
+@internal
+class GeometryLink with ChangeNotifier {
+  /// Creates a new [GeometryLink].
+  GeometryLink();
+
+  /// Information about a shape registered with this link.
+  final Map<RenderLiquidGlass, (LiquidShape shape, bool glassContainsChild)>
+      _shapes = {};
+
+  List<
+      MapEntry<RenderLiquidGlass,
+          (LiquidShape shape, bool glassContainsChild)>> get shapeEntries =>
+      _shapes.entries.toList();
+
+  /// Check if any shapes are registered.
+  bool get hasShapes => _shapes.isNotEmpty;
+
+  /// Register a shape with this link.
+  void registerShape(
+    RenderLiquidGlass renderObject,
+    LiquidShape shape,
+    bool glassContainsChild,
+  ) {
+    _shapes[renderObject] = (shape, glassContainsChild);
+    _notifyChange();
+  }
+
+  /// Unregister a shape from this link.
+  void unregisterShape(RenderLiquidGlass renderObject) {
+    _shapes.remove(renderObject);
+    _notifyChange();
+  }
+
+  /// Update the shape properties for a registered render object.
+  void updateShape(
+    RenderLiquidGlass renderObject,
+    LiquidShape shape,
+    bool glassContainsChild,
+  ) {
+    _shapes[renderObject] = (shape, glassContainsChild);
+  }
+
+  /// Notify that a shape's layout has changed.
+  void notifyShapeLayoutChanged(RenderObject renderObject) {
+    if (_shapes.containsKey(renderObject)) {
+      _notifyChange();
+    }
+  }
+
+  bool _postFrameCallbackScheduled = false;
+
+  void _notifyChange() {
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      // We're in the middle of a layout and paint phase. Notify listeners
+      // at the end of the frame.
+      if (!_postFrameCallbackScheduled) {
+        _postFrameCallbackScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _postFrameCallbackScheduled = false;
+          if (hasListeners) notifyListeners();
+        });
+      }
+      return;
+    }
+
+    // We're not in a layout/paint phase. Immediately notify listeners.
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _shapes.clear();
+    super.dispose();
+  }
 }

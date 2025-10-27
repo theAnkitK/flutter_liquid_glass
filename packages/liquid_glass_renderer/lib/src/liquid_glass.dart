@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/glass_link.dart';
+import 'package:liquid_glass_renderer/src/internal/links.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:meta/meta.dart';
 
