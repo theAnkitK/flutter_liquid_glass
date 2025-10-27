@@ -35,6 +35,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   final FragmentShader renderShader;
 
+  /// The size that the geometry texture should have.
+  Size get desiredMatteSize;
+
+  Matrix4 get matteTransform;
+
   late GeometryRenderLink _link;
   GeometryRenderLink get link => _link;
   set link(GeometryRenderLink value) {
@@ -44,8 +49,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     markNeedsPaint();
     _link = value;
   }
-
-  // === Settings and Configuration ===
 
   LiquidGlassSettings? _settings;
   LiquidGlassSettings get settings => _settings!;
@@ -120,9 +123,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   Rect? _lastGlobalRect;
 
+  // MARK: Painting
+
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
+    debugPaintLiquidGlassGeometry = false;
     final rect = localToGlobal(Offset.zero) & size;
     if (_lastGlobalRect != rect) {
       _needsGeometryUpdate = true;
@@ -131,7 +137,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (link.shapeGeometries.isEmpty) {
       _geometryImage?.dispose();
       _geometryImage = null;
-      markNeedsCompositingBitsUpdate();
+
       super.paint(context, offset);
       return;
     }
@@ -140,13 +146,18 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
     Rect? boundingBox;
 
-    for (final MapEntry(key: ro, value: geometry)
+    for (final MapEntry(key: geometryRo, value: geometry)
         in link.shapeGeometries.entries) {
       if (geometry == null) continue;
 
-      shapesWithGeometry.add((ro, geometry));
+      final transform = geometryRo.getTransformTo(this);
 
-      final geoBounds = geometry.bounds;
+      shapesWithGeometry.add((geometryRo, geometry));
+
+      final geoBounds = MatrixUtils.transformRect(
+        transform,
+        geometry.bounds,
+      );
       boundingBox = boundingBox == null
           ? geoBounds
           : boundingBox.expandToInclude(geoBounds);
@@ -167,7 +178,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       );
       _geometryImage?.dispose();
       _geometryImage = null;
-      markNeedsCompositingBitsUpdate();
       super.paint(context, offset);
       return;
     }
@@ -179,9 +189,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
           .toList();
 
       _geometryImage?.dispose();
-      if (_geometryImage == null) {
-        markNeedsCompositingBitsUpdate();
-      }
       _needsGeometryUpdate = false;
       _geometryImage = _buildGeometryImage(geometries);
     }
@@ -201,38 +208,18 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         insideGlass: false,
       );
     } else {
-      _paintGlassEffect(
-        context,
-        offset,
-        shapesWithGeometry,
-        boundingBox ?? Rect.zero,
-      );
+      if (_geometryImage case final geometryImage?) {
+        renderShader.setImageSampler(1, geometryImage);
+        paintLiquidGlass(
+          context,
+          offset,
+          shapesWithGeometry,
+          boundingBox ?? Rect.zero,
+        );
+      }
     }
 
     super.paint(context, offset);
-  }
-
-  void _debugPaintGeometry(PaintingContext context, Offset offset) {
-    if (_geometryImage case final geometryImage?) {
-      context.canvas
-        ..save()
-        ..transform(Matrix4.inverted(matteTransform).storage)
-        ..scale(1 / devicePixelRatio)
-        ..drawImage(geometryImage, offset * devicePixelRatio, Paint())
-        ..restore();
-    }
-  }
-
-  void _paintGlassEffect(
-    PaintingContext context,
-    Offset offset,
-    List<(RenderLiquidGlassGeometry, Geometry)> shapes,
-    Rect boundingBox,
-  ) {
-    if (_geometryImage case final geometryImage?) {
-      renderShader.setImageSampler(1, geometryImage);
-      paintLiquidGlass(context, offset, shapes, boundingBox);
-    }
   }
 
   /// Subclasses implement the actual glass rendering
@@ -251,12 +238,24 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     List<(RenderLiquidGlassGeometry, Geometry)> shapes, {
     required bool insideGlass,
   }) {
-    for (final (ro, _) in shapes) {
-      ro.paintShapeContents(
+    for (final (geometryRenderObject, _) in shapes) {
+      geometryRenderObject.paintShapeContents(
+        this,
         context,
-        ro.geometry!.bounds.topLeft,
+        offset,
         insideGlass: insideGlass,
       );
+    }
+  }
+
+  void _debugPaintGeometry(PaintingContext context, Offset offset) {
+    if (_geometryImage case final geometryImage?) {
+      context.canvas
+        ..save()
+        ..transform(Matrix4.inverted(matteTransform).storage)
+        ..scale(1 / devicePixelRatio)
+        ..drawImage(geometryImage, offset * devicePixelRatio, Paint())
+        ..restore();
     }
   }
 
@@ -267,16 +266,13 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     super.dispose();
   }
 
+  // MARK: Geometry
+
   bool _needsGeometryUpdate = true;
 
   void _onLinkNotification() {
     _needsGeometryUpdate = true;
   }
-
-  /// The size that the geometry texture should have.
-  Size get desiredMatteSize;
-
-  Matrix4 get matteTransform;
 
   ui.Image _buildGeometryImage(
     List<(RenderLiquidGlassGeometry, Geometry)> geometries,
@@ -286,15 +282,15 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         '${geometries.length} shapes at size $size');
     final recorder = ui.PictureRecorder();
 
-    final canvas = Canvas(recorder)
-      ..scale(devicePixelRatio)
-      ..transform(matteTransform.storage)
-      ..scale(1 / devicePixelRatio);
+    final canvas = Canvas(recorder);
 
     for (final (renderObject, geometry) in geometries) {
       canvas
         ..save()
+        ..scale(devicePixelRatio)
         ..transform(renderObject.getTransformTo(this).storage)
+        ..transform(matteTransform.storage)
+        ..scale(1 / devicePixelRatio)
         ..translate(
           geometry.matteBounds.topLeft.dx,
           geometry.matteBounds.topLeft.dy,

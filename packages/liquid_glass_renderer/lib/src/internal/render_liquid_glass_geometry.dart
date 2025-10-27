@@ -168,6 +168,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Paints the contents of all shapes to the given [context] at the given
   /// [offset].
   void paintShapeContents(
+    RenderObject from,
     PaintingContext context,
     Offset offset, {
     required bool insideGlass,

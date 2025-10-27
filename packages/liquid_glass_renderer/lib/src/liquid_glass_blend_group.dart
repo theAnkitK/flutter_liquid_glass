@@ -199,8 +199,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     geometryShader.setFloatUniforms(initialIndex: 6, (value) {
       value.setFloat(shapes.length.toDouble());
       for (final shape in shapes) {
-        final center = shape.layerBounds.center;
-        final size = shape.layerBounds.size;
+        final center = shape.shapeBounds.center;
+        final size = shape.shapeBounds.size;
         value
           ..setFloat(shape.rawShapeType.shaderIndex)
           ..setFloat((center.dx) * devicePixelRatio)
@@ -239,15 +239,15 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         );
         shapes.add(shapeData);
 
-        layerBounds = layerBounds?.expandToInclude(shapeData.layerBounds) ??
-            shapeData.layerBounds;
+        layerBounds = layerBounds?.expandToInclude(shapeData.shapeBounds) ??
+            shapeData.shapeBounds;
 
         final existingShape =
             cachedShapes.length > index ? cachedShapes[index] : null;
 
         if (existingShape == null) {
           anyShapeChangedInLayer = true;
-        } else if (existingShape.layerBounds != shapeData.layerBounds) {
+        } else if (existingShape.shapeBounds != shapeData.shapeBounds) {
           anyShapeChangedInLayer = true;
         }
       } catch (e) {
@@ -264,6 +264,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
   @override
   void paintShapeContents(
+    RenderObject from,
     PaintingContext context,
     Offset offset, {
     required bool insideGlass,
@@ -277,8 +278,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
       renderObject.paintFromLayer(
         context,
-        renderObject.getTransformTo(this),
-        Offset.zero,
+        renderObject.getTransformTo(from),
+        offset,
       );
     }
   }
@@ -304,7 +305,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
     // Layer space: for painting shape contents with correct transforms
     final transformToGeometry = renderObject.getTransformTo(this);
-    final layerRect = MatrixUtils.transformRect(
+
+    final blendGroupRect = MatrixUtils.transformRect(
       transformToGeometry,
       Offset.zero & renderObject.size,
     );
@@ -313,7 +315,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       renderObject: renderObject,
       shape: shape,
       glassContainsChild: glassContainsChild,
-      layerBounds: layerRect,
+      shapeBounds: blendGroupRect,
     );
   }
 }

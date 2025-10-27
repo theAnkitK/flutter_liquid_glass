@@ -244,40 +244,37 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
         matrix4: geometry.$1.getTransformTo(this).storage,
       );
     }
-
-    final clipLayer = (_clipPathLayerHandle.layer ??= ClipPathLayer())
-      ..clipPath = clipPath
-      ..clipBehavior = Clip.hardEdge;
-
-    final clipRectLayer = (_clipRectLayerHandle.layer ??= ClipRectLayer())
-      ..clipRect = boundingBox;
-
-    context
-      // First we push the clipped blur layer
-      ..pushLayer(
-        clipLayer,
-        (context, offset) {
-          context.pushLayer(
-            blurLayer,
-            (context, offset) {
-              // If glass contains child we paint it above blur but below shader
-              paintShapeContents(
-                context,
-                offset,
-                shapes,
-                insideGlass: true,
-              );
-            },
-            offset,
-          );
-        },
-        offset,
-      )
-      ..pushClipRect(
-        true,
-        offset,
-        boundingBox,
-        (context, offset) => context.pushLayer(
+    _clipPathLayerHandle.layer = context
+        // First we push the clipped blur layer
+        .pushClipPath(
+      needsCompositing,
+      offset,
+      boundingBox,
+      clipPath,
+      (context, offset) {
+        context.pushLayer(
+          blurLayer,
+          (context, offset) {
+            // If glass contains child we paint it above blur but below shader
+            paintShapeContents(
+              context,
+              offset,
+              shapes,
+              insideGlass: true,
+            );
+          },
+          offset,
+        );
+      },
+      oldLayer: _clipPathLayerHandle.layer,
+    );
+    _clipRectLayerHandle.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      boundingBox,
+      (context, offset) {
+        context.canvas.drawPaint(Paint()..color = Colors.red);
+        context.pushLayer(
           shaderLayer,
           (context, offset) {
             paintShapeContents(
@@ -288,9 +285,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
             );
           },
           offset,
-        ),
-        oldLayer: clipRectLayer,
-      );
+        );
+      },
+      oldLayer: _clipRectLayerHandle.layer,
+    );
   }
 
   @override
