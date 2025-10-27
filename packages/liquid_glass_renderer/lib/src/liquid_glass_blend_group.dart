@@ -55,6 +55,15 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
+    final useFake = LiquidGlassScope.of(context).useFake;
+
+    if (useFake) {
+      return _InheritedLiquidGlassBlendGroup(
+        link: _geometryLink,
+        child: widget.child,
+      );
+    }
+
     return _InheritedLiquidGlassBlendGroup(
       link: _geometryLink,
       child: ShaderBuilder(

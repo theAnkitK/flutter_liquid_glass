@@ -49,12 +49,22 @@ class FakeGlass extends StatelessWidget {
         this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
-      child: Material(
-        shape: shape,
-        child: Opacity(
-          opacity: settings.visibility.clamp(0, 1),
-          child: GlassGlowLayer(
-            child: child,
+      child: BackdropFilter.grouped(
+        filter: ui.ImageFilter.blur(
+          sigmaX: settings.effectiveBlur,
+          sigmaY: settings.effectiveBlur,
+          tileMode: TileMode.mirror,
+        ),
+        child: Container(
+          decoration: ShapeDecoration(
+            shape: shape,
+            color: settings.glassColor,
+          ),
+          child: Opacity(
+            opacity: settings.visibility.clamp(0, 1),
+            child: GlassGlowLayer(
+              child: child,
+            ),
           ),
         ),
       ),
