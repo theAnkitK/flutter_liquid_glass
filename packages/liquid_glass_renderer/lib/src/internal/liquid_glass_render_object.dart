@@ -123,13 +123,24 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   Rect? _lastGlobalRect;
 
+  @override
+  bool get isRepaintBoundary => true;
+
+  ui.Rect _paintBounds = ui.Rect.zero;
+
+  @override
+  ui.Rect get paintBounds => _paintBounds;
+
   // MARK: Painting
 
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
     debugPaintLiquidGlassGeometry = false;
-    final rect = localToGlobal(Offset.zero) & size;
+    final rect = MatrixUtils.transformRect(
+      getTransformTo(null),
+      Offset.zero & size,
+    );
     if (_lastGlobalRect != rect) {
       _needsGeometryUpdate = true;
       _lastGlobalRect = rect;
@@ -163,6 +174,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
           ? geoBounds
           : boundingBox.expandToInclude(geoBounds);
     }
+
+    _paintBounds = boundingBox ?? ui.Rect.zero;
 
     if (settings.effectiveThickness <= 0) {
       paintShapeContents(
@@ -210,7 +223,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
           context,
           offset,
           shapesWithGeometry,
-          boundingBox ?? Rect.zero,
+          _paintBounds,
         );
       }
     }

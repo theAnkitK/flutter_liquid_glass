@@ -249,7 +249,8 @@ class RenderLiquidGlass extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    _blendGroupLink?.notifyShapeLayoutChanged(this);
+    // TODO this ruins performance, but without it everything breaks
+    // _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
   void paintFromLayer(
