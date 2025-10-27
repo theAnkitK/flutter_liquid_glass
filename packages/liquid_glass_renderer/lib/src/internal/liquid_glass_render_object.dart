@@ -295,12 +295,13 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         ..restore();
     }
 
-    // Finalize image
     final picture = recorder.endRecording();
-    return picture.toImageSync(
+    final image = picture.toImageSync(
       size.width.ceil(),
       size.height.ceil(),
     );
+    picture.dispose();
+    return image;
   }
 }
 

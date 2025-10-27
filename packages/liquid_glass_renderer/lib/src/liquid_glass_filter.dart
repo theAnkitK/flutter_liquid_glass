@@ -254,6 +254,7 @@ class _ShaderLayer extends OffsetLayer {
 
       final picture = recorder.endRecording();
       builder.addPicture(offset, picture);
+      picture.dispose();
     }
     builder.pop();
   }
