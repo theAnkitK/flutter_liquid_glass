@@ -199,7 +199,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Should be called from within [paint] to maybe rebuild the [geometry].
   void _maybeRebuildGeometry() {
     if (geometryState == LiquidGlassGeometryState.updated) {
-      //      logger.finest('$hashCode Geometry is up to date.');
       return;
     }
 

@@ -4,6 +4,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/links.dart';
 import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
@@ -140,7 +141,8 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
 
 @visibleForTesting
 @internal
-class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
+class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
+    with TransformTrackingRenderObjectMixin {
   RenderLiquidGlassBlendGroup({
     required super.renderLink,
     required super.devicePixelRatio,
@@ -166,6 +168,12 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
   void _onLinkUpdate() {
     // One of the shapes might have changed.
+    markGeometryNeedsUpdate();
+    markNeedsPaint();
+  }
+
+  @override
+  void onTransformChanged() {
     markGeometryNeedsUpdate();
     markNeedsPaint();
   }

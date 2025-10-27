@@ -96,7 +96,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   @override
   void layout(Constraints constraints, {bool parentUsesSize = false}) {
-    _needsGeometryUpdate = true;
+    needsGeometryUpdate = true;
     super.layout(constraints, parentUsesSize: parentUsesSize);
   }
 
@@ -121,8 +121,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     });
   }
 
-  Rect? _lastGlobalRect;
-
   @override
   bool get isRepaintBoundary => true;
 
@@ -137,14 +135,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
     debugPaintLiquidGlassGeometry = false;
-    final rect = MatrixUtils.transformRect(
-      getTransformTo(null),
-      Offset.zero & size,
-    );
-    if (_lastGlobalRect != rect) {
-      _needsGeometryUpdate = true;
-      _lastGlobalRect = rect;
-    }
+
     if (link.shapeGeometries.isEmpty) {
       _geometryImage?.dispose();
       _geometryImage = null;
@@ -196,9 +187,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       return;
     }
 
-    if (_needsGeometryUpdate || _geometryImage == null) {
+    if (needsGeometryUpdate || _geometryImage == null) {
       _geometryImage?.dispose();
-      _needsGeometryUpdate = false;
+      needsGeometryUpdate = false;
       _geometryImage = _buildGeometryImage(shapesWithGeometry);
     }
 
@@ -277,10 +268,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   // MARK: Geometry
 
-  bool _needsGeometryUpdate = true;
+  @protected
+  bool needsGeometryUpdate = true;
 
   void _onLinkNotification() {
-    _needsGeometryUpdate = true;
+    needsGeometryUpdate = true;
   }
 
   ui.Image _buildGeometryImage(

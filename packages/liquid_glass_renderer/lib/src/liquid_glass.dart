@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/links.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:meta/meta.dart';
@@ -166,7 +167,8 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 }
 
 @internal
-class RenderLiquidGlass extends RenderProxyBox {
+class RenderLiquidGlass extends RenderProxyBox
+    with TransformTrackingRenderObjectMixin {
   RenderLiquidGlass({
     required LiquidShape shape,
     required bool glassContainsChild,
@@ -248,9 +250,14 @@ class RenderLiquidGlass extends RenderProxyBox {
   }
 
   @override
+  void onTransformChanged() {
+    _blendGroupLink?.notifyShapeLayoutChanged(this);
+  }
+
+  @override
+  // ignore: must_call_super
   void paint(PaintingContext context, Offset offset) {
-    // TODO this ruins performance, but without it everything breaks
-    // _blendGroupLink?.notifyShapeLayoutChanged(this);
+    setUpLayer(offset);
   }
 
   void paintFromLayer(

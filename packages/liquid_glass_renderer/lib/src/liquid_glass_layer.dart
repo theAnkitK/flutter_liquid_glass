@@ -8,6 +8,7 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
@@ -191,7 +192,8 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 }
 
 @internal
-class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
+class RenderLiquidGlassLayer extends LiquidGlassRenderObject
+    with TransformTrackingRenderObjectMixin {
   RenderLiquidGlassLayer({
     required super.renderShader,
     required super.backdropKey,
@@ -214,6 +216,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject {
 
   @override
   Matrix4 get matteTransform => getTransformTo(null);
+
+  @override
+  void onTransformChanged() {
+    needsGeometryUpdate = true;
+    markNeedsPaint();
+  }
 
   @override
   void paintLiquidGlass(

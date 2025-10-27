@@ -32,7 +32,7 @@ class BasicApp extends HookWidget {
     final tab = useState(0);
     final fake = useState(false);
 
-    final light = useRotatingAnimationController();
+    final light = AlwaysStoppedAnimation(pi / 4);
 
     return GestureDetector(
       onTap: () {
