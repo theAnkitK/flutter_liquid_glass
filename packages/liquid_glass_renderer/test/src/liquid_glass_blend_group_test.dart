@@ -51,11 +51,15 @@ void main() {
         final ro = tester.renderObject<RenderLiquidGlassBlendGroup>(
           find.byWidget(blendGroup),
         );
-
-        expect(ro.geometry, isNotNull);
+        final geo = ro.geometry;
+        expect(geo, isNotNull);
+        final matteImage = geo!.matte.toImage(
+          geo.matteBounds.width.ceil(),
+          geo.matteBounds.height.ceil(),
+        );
 
         await expectLater(
-          ro.geometry!.matte,
+          matteImage,
           matchesGoldenFile(
             'goldens/geometry/liquid_glass_blend_group_geometry_'
             'thickness${settings.thickness}_'

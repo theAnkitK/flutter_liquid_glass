@@ -13,6 +13,7 @@ import 'package:meta/meta.dart';
 /// This replaces the ticker-based approach with an event-driven system
 /// similar to follow_the_leader's LeaderLink pattern.
 @internal
+@Deprecated('Use BlendGroupLink instead')
 class GlassLink with ChangeNotifier {
   /// Creates a new [GlassLink].
   GlassLink();
@@ -190,4 +191,8 @@ class BlendGroupLink with ChangeNotifier {
     _shapes.clear();
     super.dispose();
   }
+}
+
+class GlassRenderLink with ChangeNotifier {
+  GlassRenderLink();
 }

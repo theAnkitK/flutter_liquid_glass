@@ -170,11 +170,17 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
       return;
     }
 
-    final image = _renderGeometryToImage(layerBounds, shapes);
+    final image = _buildGeometryPicture(layerBounds, shapes);
 
     geometry = Geometry(
       matte: image,
       geometryBounds: layerBounds,
+      matteBounds: Rect.fromLTWH(
+        layerBounds.left * devicePixelRatio,
+        layerBounds.top * devicePixelRatio,
+        layerBounds.width * devicePixelRatio,
+        layerBounds.height * devicePixelRatio,
+      ).snapToPixels(1),
       shapes: shapes,
     );
 
@@ -182,7 +188,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
     notifyListeners();
   }
 
-  Image _renderGeometryToImage(
+  Picture _buildGeometryPicture(
     Rect geometryBounds,
     List<ShapeGeometry> shapes,
   ) {
@@ -220,8 +226,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
         paint,
       );
 
-    final pic = recorder.endRecording();
-    return pic.toImageSync(width, height);
+    return recorder.endRecording();
   }
 }
 
@@ -232,16 +237,20 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
 class Geometry {
   const Geometry({
     required this.matte,
+    required this.matteBounds,
     required this.geometryBounds,
     required this.shapes,
   });
 
   /// The matte image representing the geometry.
-  final Image matte;
+  final Picture matte;
 
   /// The bounds of the geometry in the coordinate space of its
   /// [RenderLiquidGlassGeometry] parent.
   final Rect geometryBounds;
+
+  /// The bounds of the matte image in physical pixels.
+  final Rect matteBounds;
 
   final List<ShapeGeometry> shapes;
 
