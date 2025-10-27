@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/shared.dart';
+import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -50,16 +51,8 @@ class BasicApp extends HookWidget {
                     crossAxisCount: 2,
                   ),
                   delegate: SliverChildBuilderDelegate(
-                    (context, index) => Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Image.network(
-                            fit: BoxFit.cover,
-                            'https://picsum.photos/1000/500?random=$index',
-                          ),
-                        ),
-                      ],
-                    ),
+                    (context, index) =>
+                        Stack(children: [Positioned.fill(child: GridPaper())]),
                   ),
                 ),
               ],
@@ -161,47 +154,47 @@ class BasicApp extends HookWidget {
                 },
               ),
             ),
-            // SafeArea(
-            //   bottom: false,
-            //   child: Align(
-            //     alignment: Alignment.bottomCenter,
-            //     child: LiquidGlassBottomBar(
-            //       fake: fake.value,
-            //       extraButton: LiquidGlassBottomBarExtraButton(
-            //         icon: CupertinoIcons.add_circled,
-            //         onTap: () {
-            //           Navigator.of(context).push(
-            //             CupertinoPageRoute(
-            //               builder: (context) => CupertinoPageScaffold(
-            //                 child: SizedBox(),
-            //                 navigationBar: CupertinoNavigationBar.large(),
-            //               ),
-            //             ),
-            //           );
-            //         },
-            //         label: '',
-            //       ),
-            //       tabs: [
-            //         LiquidGlassBottomBarTab(
-            //           label: 'Home',
-            //           icon: CupertinoIcons.home,
-            //         ),
-            //         LiquidGlassBottomBarTab(
-            //           label: 'Profile',
-            //           icon: CupertinoIcons.person,
-            //         ),
-            //         LiquidGlassBottomBarTab(
-            //           label: 'Settings',
-            //           icon: CupertinoIcons.settings,
-            //         ),
-            //       ],
-            //       selectedIndex: tab.value,
-            //       onTabSelected: (index) {
-            //         tab.value = index;
-            //       },
-            //     ),
-            //   ),
-            // ),
+            SafeArea(
+              bottom: false,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: LiquidGlassBottomBar(
+                  fake: fake.value,
+                  extraButton: LiquidGlassBottomBarExtraButton(
+                    icon: CupertinoIcons.add_circled,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        CupertinoPageRoute(
+                          builder: (context) => CupertinoPageScaffold(
+                            child: SizedBox(),
+                            navigationBar: CupertinoNavigationBar.large(),
+                          ),
+                        ),
+                      );
+                    },
+                    label: '',
+                  ),
+                  tabs: [
+                    LiquidGlassBottomBarTab(
+                      label: 'Home',
+                      icon: CupertinoIcons.home,
+                    ),
+                    LiquidGlassBottomBarTab(
+                      label: 'Profile',
+                      icon: CupertinoIcons.person,
+                    ),
+                    LiquidGlassBottomBarTab(
+                      label: 'Settings',
+                      icon: CupertinoIcons.settings,
+                    ),
+                  ],
+                  selectedIndex: tab.value,
+                  onTabSelected: (index) {
+                    tab.value = index;
+                  },
+                ),
+              ),
+            ),
           ],
         ),
       ),

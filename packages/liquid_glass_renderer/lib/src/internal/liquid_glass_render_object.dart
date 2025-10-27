@@ -140,7 +140,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
       shapesWithGeometry.add((ro, geometry));
 
-      final geoBounds = geometry.geometryBounds;
+      final geoBounds = geometry.bounds;
       boundingBox = boundingBox == null
           ? geoBounds
           : boundingBox.expandToInclude(geoBounds);
@@ -247,7 +247,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     for (final (ro, _) in shapes) {
       ro.paintShapeContents(
         context,
-        ro.geometry!.geometryBounds.topLeft,
+        ro.geometry!.bounds.topLeft,
         insideGlass: insideGlass,
       );
     }
@@ -274,19 +274,23 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   ui.Image _buildGeometryImage(
     List<(RenderLiquidGlassGeometry, Geometry)> geometries,
   ) {
-    final screenSize = desiredMatteSize * devicePixelRatio;
-
+    final size = desiredMatteSize * devicePixelRatio;
+    logger.fine('$hashCode Building geometry image with '
+        '${geometries.length} shapes at size $size');
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder)..transform(matteTransform.storage);
+
+    final canvas = Canvas(recorder)
+      ..scale(devicePixelRatio)
+      ..transform(matteTransform.storage)
+      ..scale(1 / devicePixelRatio);
 
     for (final (renderObject, geometry) in geometries) {
       canvas
         ..save()
         ..transform(renderObject.getTransformTo(this).storage)
-        ..transform(matteTransform.storage)
         ..translate(
-          geometry.geometryBounds.topLeft.dx * devicePixelRatio,
-          geometry.geometryBounds.topLeft.dy * devicePixelRatio,
+          geometry.bounds.topLeft.dx * devicePixelRatio,
+          geometry.bounds.topLeft.dy * devicePixelRatio,
         )
         ..drawPicture(geometry.matte)
         ..restore();
@@ -295,8 +299,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     // Finalize image
     final picture = recorder.endRecording();
     return picture.toImageSync(
-      screenSize.width.ceil(),
-      screenSize.height.ceil(),
+      size.width.ceil(),
+      size.height.ceil(),
     );
   }
 }

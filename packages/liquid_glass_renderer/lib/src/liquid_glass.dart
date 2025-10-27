@@ -200,6 +200,8 @@ class RenderLiquidGlass extends RenderProxyBox {
     _registerWithLink();
   }
 
+  final transformLayerHandle = LayerHandle<TransformLayer>();
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
@@ -209,6 +211,7 @@ class RenderLiquidGlass extends RenderProxyBox {
   @override
   void detach() {
     _unregisterFromParentLayer();
+    transformLayerHandle.layer = null;
     super.detach();
   }
 
@@ -244,20 +247,29 @@ class RenderLiquidGlass extends RenderProxyBox {
     _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
-  Offset? lastOffset;
-
   @override
   void paint(PaintingContext context, Offset offset) {
-    lastOffset = offset;
+    // Noop, instead we [paintFromLayer]
     _blendGroupLink?.notifyShapeLayoutChanged(this);
   }
 
-  void paintFromLayer(PaintingContext context, Offset offset) {
-    if (attached) super.paint(context, offset);
+  void paintFromLayer(
+    PaintingContext context,
+    Matrix4 transform,
+    Offset offset,
+  ) {
+    if (attached) {
+      transformLayerHandle.layer = context.pushTransform(
+        needsCompositing,
+        offset,
+        transform,
+        super.paint,
+        oldLayer: transformLayerHandle.layer,
+      );
+    }
   }
 
   Path getPath() {
     return _lastPath;
   }
 }
-//

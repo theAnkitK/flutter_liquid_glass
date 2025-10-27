@@ -268,6 +268,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
       renderObject.paintFromLayer(
         context,
+        renderObject.getTransformTo(this),
         Offset.zero,
       );
     }

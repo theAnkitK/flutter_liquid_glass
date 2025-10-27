@@ -213,7 +213,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     // Set the new geometry
     final newGeo = geometry = Geometry(
       matte: image,
-      geometryBounds: layerBounds,
+      bounds: layerBounds,
       matteBounds: Rect.fromLTWH(
         layerBounds.left * devicePixelRatio,
         layerBounds.top * devicePixelRatio,
@@ -277,7 +277,7 @@ class Geometry {
   const Geometry({
     required this.matte,
     required this.matteBounds,
-    required this.geometryBounds,
+    required this.bounds,
     required this.shapes,
   });
 
@@ -286,7 +286,7 @@ class Geometry {
 
   /// The bounds of the geometry in the coordinate space of its
   /// [RenderLiquidGlassGeometry] parent.
-  final Rect geometryBounds;
+  final Rect bounds;
 
   /// The bounds of the matte image in physical pixels.
   final Rect matteBounds;
