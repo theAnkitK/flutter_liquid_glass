@@ -4,6 +4,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -131,6 +132,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
+    logger.finer('$hashCode Painting liquid glass with '
+        '${link.shapeGeometries.length} shapes.');
     if (link.shapeGeometries.isEmpty) {
       _geometryImage?.dispose();
       _geometryImage = null;
@@ -146,8 +149,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
     for (final MapEntry(key: geometryRo, value: geometry)
         in link.shapeGeometries.entries) {
-      if (geometry == null) continue;
-
       final transform = geometryRo.getTransformTo(this);
 
       shapesWithGeometry.add((geometryRo, geometry, transform));
@@ -268,6 +269,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   void _onLinkNotification() {
     needsGeometryUpdate = true;
+    markNeedsPaint();
   }
 
   ui.Image _buildGeometryImage(
@@ -275,7 +277,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   ) {
     final size = desiredMatteSize * devicePixelRatio;
     logger.fine('$hashCode Building geometry image with '
-        '${geometries.length} shapes at size $size');
+        '${geometries.length} shapes at size ${size.width}x${size.height}');
     final recorder = ui.PictureRecorder();
 
     final canvas = Canvas(recorder);
@@ -329,10 +331,13 @@ class InheritedGeometryRenderLink extends InheritedWidget {
 
 @internal
 class GeometryRenderLink with ChangeNotifier {
-  Map<RenderLiquidGlassGeometry, Geometry?> shapeGeometries = {};
+  Map<RenderLiquidGlassGeometry, Geometry> shapeGeometries = {};
 
-  void registerGeometry(RenderLiquidGlassGeometry renderObject) {
-    shapeGeometries[renderObject] = renderObject.geometry;
+  void setGeometry(
+    RenderLiquidGlassGeometry renderObject,
+    Geometry geometry,
+  ) {
+    shapeGeometries[renderObject] = geometry;
     notifyListeners();
   }
 
@@ -341,11 +346,15 @@ class GeometryRenderLink with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateGeometry(
-    RenderLiquidGlassGeometry renderObject,
-    Geometry geometry,
-  ) {
-    shapeGeometries[renderObject] = geometry;
-    notifyListeners();
+  @override
+  void notifyListeners() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (super.hasListeners) super.notifyListeners();
+      });
+      return;
+    }
+    super.notifyListeners();
   }
 }

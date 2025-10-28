@@ -95,7 +95,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (_renderLink == value) return;
     _renderLink?.unregisterGeometry(this);
     _renderLink = value;
-    value?.registerGeometry(this);
+    if (geometry case final geometry?) {
+      value?.setGeometry(this, geometry);
+    }
   }
 
   /// The current state of the geometry.
@@ -129,7 +131,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   @override
   @mustCallSuper
   void attach(PipelineOwner owner) {
-    _renderLink?.registerGeometry(this);
+    if (geometry case final geometry?) {
+      _renderLink?.setGeometry(this, geometry);
+    }
     super.attach(owner);
   }
 
@@ -198,7 +202,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   /// Should be called from within [paint] to maybe rebuild the [geometry].
   void _maybeRebuildGeometry() {
-    if (geometryState == LiquidGlassGeometryState.updated) {
+    if (geometryState == LiquidGlassGeometryState.updated && geometry != null) {
       return;
     }
 
@@ -241,7 +245,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     );
 
     // We have updated the geometry.
-    _renderLink?.updateGeometry(this, newGeo);
+    _renderLink?.setGeometry(this, newGeo);
   }
 
   Picture _buildGeometryPicture(
