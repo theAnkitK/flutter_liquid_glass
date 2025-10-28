@@ -81,7 +81,7 @@ class BasicApp extends HookWidget {
                   final settings = settingsNotifier.value.copyWith(
                     glassColor: CupertinoTheme.of(
                       context,
-                    ).barBackgroundColor.withValues(alpha: 0.4),
+                    ).barBackgroundColor.withValues(alpha: 0.2),
                   );
                   return LiquidGlassLayer(
                     fake: fake.value,

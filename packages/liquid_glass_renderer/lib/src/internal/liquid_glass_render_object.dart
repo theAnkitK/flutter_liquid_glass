@@ -269,6 +269,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   void _onLinkNotification() {
     needsGeometryUpdate = true;
+    logger.finer('$hashCode Marking layer for repaint due to link change with '
+        '${link.shapeGeometries.length} shapes.');
     markNeedsPaint();
   }
 
