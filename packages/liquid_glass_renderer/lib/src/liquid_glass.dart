@@ -27,12 +27,9 @@ import 'package:meta/meta.dart';
 /// }
 /// ```
 ///
-/// If you want multiple shapes to blend together, you need to construct your
-/// own [LiquidGlassLayer], and place this widget inside of there using the
-/// [LiquidGlass.inLayer] constructor.
-///
 /// See the [LiquidGlassLayer] documentation for more information.
 class LiquidGlass extends StatelessWidget {
+  /// Creates a new [LiquidGlass] with the given [child] and [shape].
   const LiquidGlass({
     required this.child,
     required this.shape,
@@ -41,6 +38,7 @@ class LiquidGlass extends StatelessWidget {
     super.key,
   }) : blendGroupLink = null;
 
+  /// Creates a new [LiquidGlass] that is part of a [LiquidGlassBlendGroup].
   const LiquidGlass.blended({
     required this.child,
     required this.shape,
@@ -90,30 +88,33 @@ class LiquidGlass extends StatelessWidget {
       );
     }
 
-    // if (blendGroupLink == null) {
-    //   return LiquidGlassBlendGroup(
-    //     child: Builder(
-    //       builder: (context) => _RawLiquidGlass(
-    //         blendGroupLink: LiquidGlassBlendGroup.maybeOf(context),
-    //         shape: shape,
-    //         glassContainsChild: glassContainsChild,
-    //         child: ClipPath(
-    //           clipper: ShapeBorderClipper(shape: shape),
-    //           clipBehavior: clipBehavior,
-    //           child: Opacity(
-    //             opacity: LiquidGlassSettings.of(context).visibility.clamp(0, 1),
-    //             child: GlassGlowLayer(
-    //               child: child,
-    //             ),
-    //           ),
-    //         ),
-    //       ),
-    //     ),
-    //   );
-    // }
+    final blendGroupLink =
+        this.blendGroupLink ?? LiquidGlassBlendGroup.maybeOf(context);
+
+    if (blendGroupLink == null) {
+      return LiquidGlassBlendGroup(
+        child: Builder(
+          builder: (context) => _RawLiquidGlass(
+            blendGroupLink: LiquidGlassBlendGroup.maybeOf(context),
+            shape: shape,
+            glassContainsChild: glassContainsChild,
+            child: ClipPath(
+              clipper: ShapeBorderClipper(shape: shape),
+              clipBehavior: clipBehavior,
+              child: Opacity(
+                opacity: LiquidGlassSettings.of(context).visibility.clamp(0, 1),
+                child: GlassGlowLayer(
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return _RawLiquidGlass(
-      blendGroupLink: LiquidGlassBlendGroup.maybeOf(context),
+      blendGroupLink: blendGroupLink,
       shape: shape,
       glassContainsChild: glassContainsChild,
       child: ClipPath(

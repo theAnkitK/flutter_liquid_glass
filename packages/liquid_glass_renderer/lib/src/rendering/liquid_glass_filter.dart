@@ -18,9 +18,6 @@ import 'package:meta/meta.dart';
 ///
 /// Unlike [LiquidGlassLayer], this will filter it's [child], instead of its
 /// background.
-/// This means that conceptually, [child] will be painted first without any
-/// instances of [LiquidGlass.inLayer] inside of it, and then the liquid glass
-/// elements will be painted on top.
 @experimental
 class LiquidGlassFilter extends StatefulWidget {
   /// Creates a new [LiquidGlassFilter] with the given [child] and [settings].
@@ -36,6 +33,7 @@ class LiquidGlassFilter extends StatefulWidget {
   /// Defaults to a default instance of [LiquidGlassSettings].
   final LiquidGlassSettings settings;
 
+  /// Whether to use fake liquid glass rendering.
   final bool fake;
 
   /// The child that will be filtered with the liquid glass effect.
