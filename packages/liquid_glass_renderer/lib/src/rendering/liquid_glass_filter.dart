@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 import 'package:meta/meta.dart';
 
@@ -150,13 +150,13 @@ class _RenderLiquidGlassFilter extends LiquidGlassRenderObject {
     List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> shapes,
     Rect boundingBox,
   ) {
-    final layer = (this.layer ??= _ShaderLayer())
-      ..shader = renderShader
-      ..devicePixelRatio = devicePixelRatio
-      ..bounds = offset & size
-      ..offset = offset
-      ..shapeBounds = boundingBox
-      ..blur = settings.effectiveBlur;
+    // final layer = (this.layer ??= _ShaderLayer())
+    //   ..shader = renderShader
+    //   ..devicePixelRatio = devicePixelRatio
+    //   ..bounds = offset & size
+    //   ..offset = offset
+    //   ..shapeBounds = boundingBox
+    //   ..blur = settings.effectiveBlur;
 
     paintShapeContents(
       context,
