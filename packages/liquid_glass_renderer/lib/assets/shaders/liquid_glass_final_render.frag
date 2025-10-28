@@ -14,6 +14,8 @@ precision mediump float;
 #include "render.glsl"
 
 uniform vec2 uSize;
+uniform vec2 uGeometryOffset;
+uniform vec2 uGeometrySize;
 
 uniform vec4 uGlassColor;
 uniform vec3 uOpticalProps;
@@ -43,7 +45,12 @@ void main() {
         screenUV.y = 1.0 - screenUV.y;
     #endif
 
-    vec4 geometryData = texture(uGeometryTexture, screenUV);
+    vec2 geometryUV = (fragCoord - uGeometryOffset) / uGeometrySize;
+    #ifdef IMPELLER_TARGET_OPENGLES
+        geometryUV.y = 1.0 - geometryUV.y;
+    #endif
+
+    vec4 geometryData = texture(uGeometryTexture, geometryUV);
     
     #if DEBUG_GEOMETRY
         fragColor = geometryData;

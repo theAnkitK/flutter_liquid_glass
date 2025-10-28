@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -81,6 +82,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Pre-rendered geometry texture in screen space
   ui.Image? _geometryImage;
 
+  /// The bounding box of the geometry matte in the coordinate space of the
+  /// shader
+  Rect _geometryMatteBounds = Rect.zero;
+
   @override
   @mustCallSuper
   void attach(PipelineOwner owner) {
@@ -102,7 +107,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   void _updateShaderSettings() {
-    renderShader.setFloatUniforms(initialIndex: 2, (value) {
+    renderShader.setFloatUniforms(initialIndex: 6, (value) {
       value
         ..setColor(settings.effectiveGlassColor)
         ..setFloats([
@@ -186,7 +191,14 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (needsGeometryUpdate || _geometryImage == null) {
       _geometryImage?.dispose();
       needsGeometryUpdate = false;
-      _geometryImage = _buildGeometryImage(shapesWithGeometry);
+
+      final (image, matteBounds) = _buildGeometryImage(
+        shapesWithGeometry,
+        boundingBox!,
+      );
+
+      _geometryImage = image;
+      _geometryMatteBounds = matteBounds;
     }
 
     if (debugPaintLiquidGlassGeometry) {
@@ -205,7 +217,13 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       );
     } else {
       if (_geometryImage case final geometryImage?) {
-        renderShader.setImageSampler(1, geometryImage);
+        renderShader
+          ..setFloatUniforms(initialIndex: 2, (value) {
+            value
+              ..setOffset(_geometryMatteBounds.topLeft * devicePixelRatio)
+              ..setSize(_geometryMatteBounds.size * devicePixelRatio);
+          })
+          ..setImageSampler(1, geometryImage);
         paintLiquidGlass(
           context,
           offset,
@@ -246,9 +264,18 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   void _debugPaintGeometry(PaintingContext context, Offset offset) {
     if (_geometryImage case final geometryImage?) {
+      final backToThis = Matrix4.inverted(matteTransform).storage;
+      final bounds = MatrixUtils.transformRect(
+        matteTransform,
+        paintBounds,
+      ).snapToPixels(devicePixelRatio);
       context.canvas
         ..save()
-        ..transform(Matrix4.inverted(matteTransform).storage)
+        ..transform(backToThis)
+        ..translate(
+          bounds.left,
+          bounds.top,
+        )
         ..scale(1 / devicePixelRatio)
         ..drawImage(geometryImage, offset * devicePixelRatio, Paint())
         ..restore();
@@ -274,20 +301,29 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  ui.Image _buildGeometryImage(
+  (ui.Image, Rect) _buildGeometryImage(
     List<(RenderLiquidGlassGeometry, Geometry, Matrix4)> geometries,
+    Rect bounds,
   ) {
-    final size = desiredMatteSize * devicePixelRatio;
+    final boundsInMatteSpace = MatrixUtils.transformRect(
+      matteTransform,
+      bounds,
+    ).snapToPixels(devicePixelRatio);
+
+    final size = boundsInMatteSpace.size * devicePixelRatio;
     logger.fine('$hashCode Building geometry image with '
         '${geometries.length} shapes at size ${size.width}x${size.height}');
     final recorder = ui.PictureRecorder();
 
     final canvas = Canvas(recorder);
-
     for (final (_, geometry, transform) in geometries) {
       canvas
         ..save()
         ..scale(devicePixelRatio)
+        ..translate(
+          -boundsInMatteSpace.left,
+          -boundsInMatteSpace.top,
+        )
         ..transform(transform.storage)
         ..transform(matteTransform.storage)
         ..scale(1 / devicePixelRatio)
@@ -305,7 +341,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       size.height.ceil(),
     );
     picture.dispose();
-    return image;
+    return (image, boundsInMatteSpace);
   }
 }
 
