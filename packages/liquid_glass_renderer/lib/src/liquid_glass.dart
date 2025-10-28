@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/links.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_scope.dart';
@@ -222,7 +221,7 @@ class RenderLiquidGlass extends RenderProxyBox
       _blendGroupLink!.registerShape(
         this,
         _shape,
-        _glassContainsChild,
+        glassContainsChild: _glassContainsChild,
       );
     }
   }
@@ -235,7 +234,7 @@ class RenderLiquidGlass extends RenderProxyBox
     _blendGroupLink?.updateShape(
       this,
       _shape,
-      _glassContainsChild,
+      glassContainsChild: _glassContainsChild,
     );
   }
 
