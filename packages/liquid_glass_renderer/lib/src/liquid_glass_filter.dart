@@ -274,7 +274,6 @@ class _ShaderLayer extends OffsetLayer {
     );
     builder.pushTransform(transform.storage);
     if (blur > 0) {
-      // We only need to capture the area that will be blurred
       builder.pushImageFilter(
         ui.ImageFilter.blur(
           sigmaX: blur,
@@ -292,10 +291,13 @@ class _ShaderLayer extends OffsetLayer {
 
     builder.pop();
 
-    return builder.build().toImageSync(
-          (devicePixelRatio * bounds.width).ceil(),
-          (devicePixelRatio * bounds.height).ceil(),
-        );
+    final scene = builder.build();
+    final image = scene.toImageSync(
+      (devicePixelRatio * bounds.width).ceil(),
+      (devicePixelRatio * bounds.height).ceil(),
+    );
+    scene.dispose();
+    return image;
   }
 
   @override
