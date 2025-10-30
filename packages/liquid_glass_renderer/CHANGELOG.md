@@ -1,3 +1,9 @@
+## 0.2.0-dev.2
+
+ - **FIX**: glass was always grouped no matter which constructor was used.
+ - **FIX**: one frame delay in geometry mattes.
+ - **FIX**: link doesn't need to notify listeners, we can mark it dirty.
+
 ## 0.2.0-dev.1
 
 > Note: This release has breaking changes.
